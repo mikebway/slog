@@ -6,22 +6,24 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
 	"os"
 
 	homedir "github.com/mitchellh/go-homedir"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var (
-	cfgFile string // When configureed form a file, the location of the file
+	unitTesting  = false // Set to true when running unit tests
+	executeError error   // The error value obtained by Execute(), captured for unit test purposes
+	cfgFile      string  // When configureed from a file, the location of the file
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "slog",
 	Short: "The slog utility manages web access logs stored in S3",
-	Long: `Slog is a CLI libraray for reading and culling web access logs stored in S3.
+	Long: `Slog is a CLI utility for reading and culling web access logs stored in S3.
 
 Typically, the logs managed are those generated in response to access to static web assets
 themselves served directly from S3.`,
@@ -30,9 +32,11 @@ themselves served directly from S3.`,
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	if executeError = rootCmd.Execute(); executeError != nil {
+		fmt.Println(executeError)
+		if !unitTesting {
+			os.Exit(1)
+		}
 	}
 }
 

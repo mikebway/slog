@@ -54,9 +54,12 @@ S3 hosted web logs from a specified bucket for that time window.`,
 		}
 
 		// All is well with the command formating (to the best of our present knowledge).
-		// Go ahead and do the work
-		fmt.Printf("Reading longs from %v for with start=%v, window=%v seconds, path=%v",
-			args[0], startDate.Format(layoutStartTime), window.Seconds(), path)
+		// Go ahead and do the work unless we are unit testing.
+		fmt.Printf("Reading logs from %v/%v for with start=%v, window=%v seconds",
+			args[0], path, startDate.Format(layoutStartTime), window.Seconds())
+		if !unitTesting {
+			fmt.Println("Read command code will be called here")
+		}
 
 		// Command line parsing succeeded even if the execution failed
 		return nil

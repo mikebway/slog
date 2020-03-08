@@ -33,3 +33,11 @@ Flags:
 
 Use "slog [command] --help" for more information about a command.
 ```
+
+## Unit Testing
+
+To run all of the unit tests from the command line and receive a coverage report:
+
+```bash
+go test -cover ./...
+```
