@@ -9,12 +9,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-
-	// Start time format
-	layoutStartTime = "2006-01-02-15-04-05-0700"
-)
-
 var (
 	path         string        // the log folder path within the S3 bucket
 	startDateStr string        // flag value defining the start time of the window to be processed
@@ -42,7 +36,7 @@ S3 hosted web logs from a specified bucket for that time window.`,
 
 		// Parse the start time
 		var err error
-		startDate, err = time.Parse(layoutStartTime, startDateStr)
+		startDate, err = time.Parse(time.RFC3339, startDateStr)
 		if err != nil {
 			return fmt.Errorf("Invalid start date time: %w", err)
 		}
@@ -56,7 +50,7 @@ S3 hosted web logs from a specified bucket for that time window.`,
 		// All is well with the command formating (to the best of our present knowledge).
 		// Go ahead and do the work unless we are unit testing.
 		fmt.Printf("Reading logs from %v/%v for with start=%v, window=%v seconds",
-			args[0], path, startDate.Format(layoutStartTime), window.Seconds())
+			args[0], path, startDate.Format(time.RFC3339), window.Seconds())
 		if !unitTesting {
 			fmt.Println("Read command code will be called here")
 		}
@@ -72,8 +66,8 @@ func init() {
 	// Here you will define your flags and configuration settings.
 
 	// Local flag definitions
-	readCmd.Flags().StringVar(&startDateStr, "start", "2020-01-01-00-00-00-0000",
-		`Start date time in the form YYYY-MM-DD-hh-mm-ss-0000 form with time zone offset`)
+	readCmd.Flags().StringVar(&startDateStr, "start", "2020-01-01T00:00:00Z00:00",
+		`Start date time in the form 2020-01-02T15:04:05Z07:00 form with time zone offset`)
 	readCmd.Flags().StringVar(&windowStr, "window", "1h",
 		`Time window in the days (d), hours (h), minutes (m) or seconds (s).
 For example '90s' for 90 seconds. '36h' for 36 hours.`)

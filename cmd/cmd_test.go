@@ -105,7 +105,7 @@ func TestReadCommandBadStart(t *testing.T) {
 
 	// We should have a subcommand required command and a complete usage dump
 	assert.Equal(t,
-		"Invalid start date time: parsing time \"blargle\" as \"2006-01-02-15-04-05-0700\": cannot parse \"blargle\" as \"2006\"",
+		"Invalid start date time: parsing time \"blargle\" as \"2006-01-02T15:04:05Z07:00\": cannot parse \"blargle\" as \"2006\"",
 		err.Error(),
 		"Expected invalid --start value error")
 	assert.Contains(t, output, "slog read bucket [flags]", "Expected read command usage display")
@@ -115,7 +115,7 @@ func TestReadCommandBadStart(t *testing.T) {
 func TestReadCommandStart(t *testing.T) {
 
 	// Run the command
-	_, err := executeCommand("read", "bucket", "--start", "2020-03-04-05-06-07+0800")
+	_, err := executeCommand("read", "bucket", "--start", "2020-03-04T05:06:07Z1600")
 
 	// We should have a subcommand required command and a complete usage dump
 	assert.Nil(t, err, "error seen parsing valid start time")
