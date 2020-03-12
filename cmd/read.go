@@ -66,7 +66,7 @@ func init() {
 	// Here you will define your flags and configuration settings.
 
 	// Local flag definitions
-	readCmd.Flags().StringVar(&startDateStr, "start", "2020-01-01T00:00:00Z00:00",
+	readCmd.Flags().StringVar(&startDateStr, "start", "2020-01-01T00:00:00+00:00",
 		`Start date time in the form 2020-01-02T15:04:05Z07:00 form with time zone offset`)
 	readCmd.Flags().StringVar(&windowStr, "window", "1h",
 		`Time window in the days (d), hours (h), minutes (m) or seconds (s).

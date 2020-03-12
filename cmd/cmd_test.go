@@ -115,19 +115,19 @@ func TestReadCommandBadStart(t *testing.T) {
 func TestReadCommandStart(t *testing.T) {
 
 	// Run the command
-	_, err := executeCommand("read", "bucket", "--start", "2020-03-04T05:06:07Z1600")
+	_, err := executeCommand("read", "bucket", "--start", "2020-03-04T05:06:07+08:00")
 
 	// We should have a subcommand required command and a complete usage dump
 	assert.Nil(t, err, "error seen parsing valid start time")
-	assert.Equal(t, 2020, startDate.Year(), "Excpected start year did not match")
-	assert.Equal(t, time.March, startDate.Month(), "Excpected start month did not match")
-	assert.Equal(t, 4, startDate.Day(), "Excpected start day did not match")
-	assert.Equal(t, 5, startDate.Hour(), "Excpected start hour did not match")
-	assert.Equal(t, 6, startDate.Minute(), "Excpected start minute did not match")
-	assert.Equal(t, 7, startDate.Second(), "Excpected start second did not match")
-	assert.Equal(t, 0, startDate.Nanosecond(), "Excpected start nanosecond did not match")
+	assert.Equal(t, 2020, startDate.Year(), "Expected start year did not match")
+	assert.Equal(t, time.March, startDate.Month(), "Expected start month did not match")
+	assert.Equal(t, 4, startDate.Day(), "Expected start day did not match")
+	assert.Equal(t, 5, startDate.Hour(), "Expected start hour did not match")
+	assert.Equal(t, 6, startDate.Minute(), "Expected start minute did not match")
+	assert.Equal(t, 7, startDate.Second(), "Expected start second did not match")
+	assert.Equal(t, 0, startDate.Nanosecond(), "Expected start nanosecond did not match")
 	_, offset := startDate.Zone()
-	assert.Equal(t, 8*3600, offset, "Excpected start time zone did not match")
+	assert.Equal(t, 8*3600, offset, "Expected start time zone did not match")
 }
 
 // TestReadCommandBadWindow examines the case where a read command is requested
@@ -152,20 +152,20 @@ func TestReadCommandWindow(t *testing.T) {
 	var err error
 	_, err = executeCommand("read", "bucket", "--window", "7d")
 	assert.Nil(t, err, "error seen parsing valid window time of 7 days")
-	assert.Equal(t, 168.0, window.Hours(), "Excpected 7 day window did not match")
+	assert.Equal(t, 168.0, window.Hours(), "Expected 7 day window did not match")
 
 	// Run the command with a window in hours and check the result
 	_, err = executeCommand("read", "bucket", "--window", "12h")
 	assert.Nil(t, err, "error seen parsing valid window time of 12 hours")
-	assert.Equal(t, 12.0, window.Hours(), "Excpected 12 hour window did not match")
+	assert.Equal(t, 12.0, window.Hours(), "Expected 12 hour window did not match")
 
 	// Run the command with a window in days and check the result
 	_, err = executeCommand("read", "bucket", "--window", "25m")
 	assert.Nil(t, err, "error seen parsing valid window time of 25 minutes")
-	assert.Equal(t, 25.0, window.Minutes(), "Excpected 25 minute window did not match")
+	assert.Equal(t, 25.0, window.Minutes(), "Expected 25 minute window did not match")
 
 	// Run the command with a window in days and check the result
 	_, err = executeCommand("read", "bucket", "--window", "95s")
 	assert.Nil(t, err, "error seen parsing valid window time of 95 seconds")
-	assert.Equal(t, 95.0, window.Seconds(), "Excpected 95 second window did not match")
+	assert.Equal(t, 95.0, window.Seconds(), "Expected 95 second window did not match")
 }
