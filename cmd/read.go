@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/mikebway/slog/s3"
 	"github.com/spf13/cobra"
 )
 
@@ -49,10 +50,13 @@ S3 hosted web logs from a specified bucket for that time window.`,
 
 		// All is well with the command formating (to the best of our present knowledge).
 		// Go ahead and do the work unless we are unit testing.
-		fmt.Printf("Reading logs from %v/%v for with start=%v, window=%v seconds",
+		fmt.Printf("Reading logs from %v/%v for with start=%v, window=%v seconds\n",
 			args[0], path, startDate.Format(time.RFC3339), window.Seconds())
 		if !unitTesting {
-			fmt.Println("Read command code will be called here")
+			err = s3.DisplayLog(args[0], path, startDate, window)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Command line parsing succeeded even if the execution failed

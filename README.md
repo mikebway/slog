@@ -29,7 +29,7 @@ Available Commands:
   read        Display S3 hosted web logs for a given time window
 
 Flags:
-  -h, --help   help for slog
+  -h, --help  help for slog
 
 Use "slog [command] --help" for more information about a command.
 ```
