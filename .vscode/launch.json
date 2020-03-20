@@ -13,11 +13,11 @@
             "env": {},
             "args": [
                 "read",
-                "my-bucket",
+                "log.mikebroadway.com",
                 "--path",
-                "folder-name",
+                "root",
                 "--start",
-                "2020-03-15T12:00:00-06:00",
+                "2020-03-19T16:35:02-06:00",
                 "--window",
                 "2h"
             ]

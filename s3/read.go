@@ -5,34 +5,37 @@ package s3
 import (
 	"fmt"
 	"time"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 // DisplayLog prints the Web logs from the given bucket and root path / folder, from
 // the given start time and for the given time window following that.
 //
 // An error is returned if there is a proble, otherwise nil.
-func DisplayLog(bucket, folder string, startDateTime time.Time, window time.Duration) error {
+func DisplayLog(region, bucket, folder string, startDateTime time.Time, window time.Duration) error {
 
 	// Obtain an AWS session
-	// session, err := establishAWSSession()
-	// if err != nil {
-	// 	return err
-	// }
+	session, err := establishAWSSession(region)
+	if err != nil {
+		return err
+	}
 
-	// // Obtain an S3 service handle
-	// s3Service := s3.New(session)
+	// Obtain an S3 service handle
+	s3Client := s3.New(session)
 
-	// Establish the variaous communicatiomn channels that we will need
+	// Establish the various communicatiomn channels that we will need
 	errChan := make(chan error)      // Used to signal errors that require the app DisplayLog to terminate
 	keyChan := make(chan string, 5)  // Distributes S3 object keys listed from the log bucket
 	dataChan := make(chan []byte, 5) // DIstributes byte buffers downloaded from S3 objects
 	doneChan := make(chan struct{})  // Used by the final display function to signal when it is finished
 
-	// Ate what time does our window of interest close
+	// At what time does our window of interest close
 	endDateTime := startDateTime.Add(window)
 
 	// Spin up the function that lists keys from the bucket
-	go fetchLogObjectKeys(bucket, folder, startDateTime, endDateTime, keyChan, errChan)
+	go fetchLogObjectKeys(s3Client, bucket, folder, startDateTime, endDateTime, keyChan, errChan)
 
 	// Spin up the data fetching function that consumes those keys and pulls down the object content
 	go fetchLogObjectData(bucket, keyChan, dataChan, errChan)
@@ -56,13 +59,46 @@ func DisplayLog(bucket, folder string, startDateTime time.Time, window time.Dura
 //
 // If a problem occurs, fetchLogObjectKeys posts an error to errChan and terminates // returns
 // after closing keyChan.
-func fetchLogObjectKeys(bucket, folder string, startDateTime time.Time, endDateTime time.Time, keyChan chan<- string, errChan chan<- error) {
+func fetchLogObjectKeys(s3Client *s3.S3, bucket, folder string, startDateTime time.Time, endDateTime time.Time, keyChan chan<- string, errChan chan<- error) {
+
+	// Form the folder prefix from the path provided
+	prefix := folder + "/"
+
+	// Format the start time to ther nearest minute and combine with the prefix
+	// to form the "start after" key
+	startAfter := prefix + startDateTime.UTC().Format("2006-01-02-15-04-05")
+
+	// Set up our starting point for paging through S3 bucket keynames
+	input := &s3.ListObjectsV2Input{
+		MaxKeys:    aws.Int64(10),
+		Bucket:     &bucket,
+		Prefix:     &prefix,
+		StartAfter: &startAfter,
+	}
 
 	// Just testing the design - not real code
-	keyChan <- "Bucket: " + bucket
-	keyChan <- "Folder: " + folder
-	keyChan <- "Start: " + startDateTime.Format(time.RFC3339)
-	keyChan <- "End: " + endDateTime.Format(time.RFC3339)
+	pageNum := 0
+
+	// Ask for the object list, with a callback function to receive pages of data
+	err := s3Client.ListObjectsV2Pages(input,
+		func(page *s3.ListObjectsV2Output, lastPage bool) bool {
+			pageNum++
+
+			// Loop through all the objects, sending their keys on to the next stage through keyChan
+			for _, obj := range page.Contents {
+				if obj.Key == nil || *obj.Key == folder {
+					continue
+				}
+				keyChan <- *obj.Key
+			}
+			return pageNum <= 3
+		})
+	if err != nil {
+		// The ListObjectsV2Pages request failed, report the error
+		errChan <- err
+	}
+
+	// We are done - close the key channel
 	close(keyChan)
 }
 

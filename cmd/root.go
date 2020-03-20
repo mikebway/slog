@@ -14,7 +14,8 @@ import (
 var (
 	unitTesting  = false // Set to true when running unit tests
 	executeError error   // The error value obtained by Execute(), captured for unit test purposes
-	cfgFile      string  // When configureed from a file, the location of the file
+	region       string  // The AWS regon to target
+	path         string  // the log folder path within the S3 bucket
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -43,7 +44,8 @@ func init() {
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.slog)")
+	rootCmd.PersistentFlags().StringVar(&region, "region", "us-east-1", "the aws region to target")
+	rootCmd.PersistentFlags().StringVar(&path, "path", "root", `The path of the log data within the S3 bucket`)
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.

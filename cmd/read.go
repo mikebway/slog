@@ -11,7 +11,6 @@ import (
 )
 
 var (
-	path         string        // the log folder path within the S3 bucket
 	startDateStr string        // flag value defining the start time of the window to be processed
 	startDate    time.Time     // the start time of the window to be processed
 	windowStr    string        // flag value defining the duration / time span to be considered
@@ -53,10 +52,12 @@ S3 hosted web logs from a specified bucket for that time window.`,
 		fmt.Printf("Reading logs from %v/%v for with start=%v, window=%v seconds\n",
 			args[0], path, startDate.Format(time.RFC3339), window.Seconds())
 		if !unitTesting {
-			err = s3.DisplayLog(args[0], path, startDate, window)
-			if err != nil {
-				return err
-			}
+			err = s3.DisplayLog(region, args[0], path, startDate, window)
+		}
+		if err != nil {
+			// Placing the error check here rather than inside the !unitTesting block
+			// increases unit test coverage without sacrificing integrity
+			return err
 		}
 
 		// Command line parsing succeeded even if the execution failed
@@ -75,8 +76,6 @@ func init() {
 	readCmd.Flags().StringVar(&windowStr, "window", "1h",
 		`Time window in the days (d), hours (h), minutes (m) or seconds (s).
 For example '90s' for 90 seconds. '36h' for 36 hours.`)
-	readCmd.Flags().StringVar(&path, "path", "root",
-		`The path of the log data within the S3 bucket`)
 }
 
 // Parse a time window string into a duration
