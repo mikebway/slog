@@ -68,30 +68,43 @@ func fetchLogObjectKeys(s3Client *s3.S3, bucket, folder string, startDateTime ti
 	// to form the "start after" key
 	startAfter := prefix + startDateTime.UTC().Format("2006-01-02-15-04-05")
 
+	// Calculate the key prefix that will signal we have reached the end
+	endAfter := prefix + endDateTime.UTC().Format("2006-01-02-15-04-05")
+
 	// Set up our starting point for paging through S3 bucket keynames
 	input := &s3.ListObjectsV2Input{
-		MaxKeys:    aws.Int64(10),
+		MaxKeys:    aws.Int64(100),
 		Bucket:     &bucket,
 		Prefix:     &prefix,
 		StartAfter: &startAfter,
 	}
 
-	// Just testing the design - not real code
-	pageNum := 0
-
 	// Ask for the object list, with a callback function to receive pages of data
 	err := s3Client.ListObjectsV2Pages(input,
 		func(page *s3.ListObjectsV2Output, lastPage bool) bool {
-			pageNum++
 
 			// Loop through all the objects, sending their keys on to the next stage through keyChan
 			for _, obj := range page.Contents {
-				if obj.Key == nil || *obj.Key == folder {
+
+				// Confirm that we have a valid key that is not the parent folder
+				key := obj.Key
+				if key == nil || *key == folder {
 					continue
 				}
-				keyChan <- *obj.Key
+
+				// Test if the key is beyond our end time
+				if *key > endAfter {
+
+					// we are done - stop paging now
+					return false
+				}
+
+				// Pass the key down the processing chain
+				keyChan <- *key
 			}
-			return pageNum <= 3
+
+			// Go round for the next page if there is one still to come
+			return !lastPage
 		})
 	if err != nil {
 		// The ListObjectsV2Pages request failed, report the error
