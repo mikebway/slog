@@ -8,6 +8,11 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+)
+
+var (
+	maxListKeys int64 = 100 // Max number of keys to fetch per page; override for unit testing
 )
 
 // DisplayLog prints the Web logs from the given bucket and root path / folder, from
@@ -16,32 +21,32 @@ import (
 // An error is returned if there is a proble, otherwise nil.
 func DisplayLog(region, bucket, folder string, startDateTime time.Time, window time.Duration) error {
 
-	// Obtain an AWS session
-	session, err := establishAWSSession(region)
+	// Obtain an access package populated with AWS session and S3 client
+	access, err := establishAWSAccess(region)
 	if err != nil {
 		return err
 	}
 
-	// Obtain an S3 service handle
-	s3Client := s3.New(session)
+	// Fill in the rest of the access structure
+	access.bucket = bucket
+	access.folder = folder
+	access.startDateTime = startDateTime
+	access.endDateTime = startDateTime.Add(window)
 
 	// Establish the various communicatiomn channels that we will need
-	errChan := make(chan error)      // Used to signal errors that require the app DisplayLog to terminate
-	keyChan := make(chan string, 5)  // Distributes S3 object keys listed from the log bucket
-	dataChan := make(chan []byte, 5) // DIstributes byte buffers downloaded from S3 objects
-	doneChan := make(chan struct{})  // Used by the final display function to signal when it is finished
-
-	// At what time does our window of interest close
-	endDateTime := startDateTime.Add(window)
+	errChan := make(chan error)                  // Used to signal errors that require the app DisplayLog to terminate
+	keyChan := make(chan string, 5)              // Distributes S3 object keys listed from the log bucket
+	dataChan := make(chan *aws.WriteAtBuffer, 5) // Distributes AWS wrapped byte buffers downloaded from S3 objects
+	doneChan := make(chan struct{})              // Used by the final display function to signal when it is finished
 
 	// Spin up the function that lists keys from the bucket
-	go fetchLogObjectKeys(s3Client, bucket, folder, startDateTime, endDateTime, keyChan, errChan)
+	go fetchLogObjectKeys(access, keyChan, errChan)
 
 	// Spin up the data fetching function that consumes those keys and pulls down the object content
-	go fetchLogObjectData(bucket, keyChan, dataChan, errChan)
+	go fetchLogObjectData(access, keyChan, dataChan, errChan)
 
 	// Spin up the data display function
-	go displayLogData(endDateTime, dataChan, doneChan, errChan)
+	go displayLogData(access, dataChan, doneChan, errChan)
 
 	// Wait until we are done or see an error
 	select {
@@ -52,80 +57,39 @@ func DisplayLog(region, bucket, folder string, startDateTime time.Time, window t
 	}
 }
 
-// fetchLogObjectKeys loops requesting pages of object keys starting from, approximately,
-// the time given until there are no more keys or the keys fall outside the given
-// time window (more recent than endDateTime). It posts those keys to keyChan. When there
-// are no more keys fitting the time window to post, it closes keyChan and returns.
-//
-// If a problem occurs, fetchLogObjectKeys posts an error to errChan and terminates // returns
-// after closing keyChan.
-func fetchLogObjectKeys(s3Client *s3.S3, bucket, folder string, startDateTime time.Time, endDateTime time.Time, keyChan chan<- string, errChan chan<- error) {
-
-	// Form the folder prefix from the path provided
-	prefix := folder + "/"
-
-	// Format the start time to ther nearest minute and combine with the prefix
-	// to form the "start after" key
-	startAfter := prefix + startDateTime.UTC().Format("2006-01-02-15-04-05")
-
-	// Calculate the key prefix that will signal we have reached the end
-	endAfter := prefix + endDateTime.UTC().Format("2006-01-02-15-04-05")
-
-	// Set up our starting point for paging through S3 bucket keynames
-	input := &s3.ListObjectsV2Input{
-		MaxKeys:    aws.Int64(100),
-		Bucket:     &bucket,
-		Prefix:     &prefix,
-		StartAfter: &startAfter,
-	}
-
-	// Ask for the object list, with a callback function to receive pages of data
-	err := s3Client.ListObjectsV2Pages(input,
-		func(page *s3.ListObjectsV2Output, lastPage bool) bool {
-
-			// Loop through all the objects, sending their keys on to the next stage through keyChan
-			for _, obj := range page.Contents {
-
-				// Confirm that we have a valid key that is not the parent folder
-				key := obj.Key
-				if key == nil || *key == folder {
-					continue
-				}
-
-				// Test if the key is beyond our end time
-				if *key > endAfter {
-
-					// we are done - stop paging now
-					return false
-				}
-
-				// Pass the key down the processing chain
-				keyChan <- *key
-			}
-
-			// Go round for the next page if there is one still to come
-			return !lastPage
-		})
-	if err != nil {
-		// The ListObjectsV2Pages request failed, report the error
-		errChan <- err
-	}
-
-	// We are done - close the key channel
-	close(keyChan)
-}
-
 // fetchLogObjectData listens to keyChan for kyes, downloaads the content of the corresponding
 // S3 objects to in memory buffers, then writes those buffers to dataChan. When keyChan is closed,
 // fetchLogObjectData closes dataChan and returns.
 //
 // If a problem occurs, fetchLogObjectData posts an error to errChan and terminates // returns after closing
 // dataChan.
-func fetchLogObjectData(bucket string, keyChan <-chan string, dataChan chan<- []byte, errChan chan<- error) {
+func fetchLogObjectData(access *awsAccess, keyChan <-chan string, dataChan chan<- *aws.WriteAtBuffer, errChan chan<- error) {
 
-	// Just testing the design - not real code
+	// Establish a download manager
+	downloader := s3manager.NewDownloaderWithClient(access.s3)
+
+	// For all the keys we get through the channel ...
 	for key := range keyChan {
-		dataChan <- []byte(key)
+
+		// We download to a buffer, not a file, using a buffer writer
+		awsBuff := &aws.WriteAtBuffer{}
+
+		// Download the object
+		_, err := downloader.Download(awsBuff,
+			&s3.GetObjectInput{
+				Bucket: aws.String(access.bucket),
+				Key:    aws.String(key),
+			})
+
+		// If that did not work -- post an error back to our caller
+		// and exit the key reading loop to close the data channel
+		if err != nil {
+			errChan <- err
+			break
+		}
+
+		// Send the buffer we just got on down the pipeline
+		dataChan <- awsBuff
 	}
 	close(dataChan)
 }
@@ -137,11 +101,11 @@ func fetchLogObjectData(bucket string, keyChan <-chan string, dataChan chan<- []
 // that the job is complete.
 //
 // If a problem occurs, fetchLogObjectData posts an error to errChan and returns without closing doneChan.
-func displayLogData(endDateTime time.Time, dataChan <-chan []byte, doneChan chan<- struct{}, errChan chan<- error) {
+func displayLogData(access *awsAccess, dataChan <-chan *aws.WriteAtBuffer, doneChan chan<- struct{}, errChan chan<- error) {
 
 	// Just testing the design - not real code
-	for buff := range dataChan {
-		fmt.Println(string(buff))
+	for awsBuff := range dataChan {
+		fmt.Println(string(awsBuff.Bytes()))
 	}
 	close(doneChan)
 }

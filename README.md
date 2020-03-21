@@ -16,7 +16,7 @@ Running the `slog` utility with either the `help` command or with no parameters 
 following usage information:
 
 ```text
-Slog is a CLI libraray for reading and culling web access logs stored in S3.
+Slog is a CLI utility for reading and culling web access logs stored in S3.
 
 Typically, the logs managed are those generated in response to access to static web assets
 themselves served directly from S3.
@@ -29,7 +29,9 @@ Available Commands:
   read        Display S3 hosted web logs for a given time window
 
 Flags:
-  -h, --help  help for slog
+  -h, --help            help for slog
+      --path string     The path of the log data within the S3 bucket (default "root")
+      --region string   the aws region to target (default "us-east-1")
 
 Use "slog [command] --help" for more information about a command.
 ```
