@@ -26,6 +26,9 @@ var rootCmd = &cobra.Command{
 
 Typically, the logs managed are those generated in response to access to static web assets
 themselves served directly from S3.`,
+
+	SilenceUsage:  true, // Only display help when explicitly requested
+	SilenceErrors: true, // Only display errors once
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
