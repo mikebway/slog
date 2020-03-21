@@ -46,7 +46,7 @@ func DisplayLog(region, bucket, folder string, startDateTime time.Time, window t
 	go fetchLogObjectData(access, keyChan, dataChan, errChan)
 
 	// Spin up the data display function
-	go displayLogData(access, dataChan, doneChan, errChan)
+	go displayLogData(dataChan, doneChan, errChan)
 
 	// Wait until we are done or see an error
 	select {
@@ -94,18 +94,20 @@ func fetchLogObjectData(access *awsAccess, keyChan <-chan string, dataChan chan<
 	close(dataChan)
 }
 
-// displayLogData listens to dataChan, rendering the buffers that it receives to the display as strings
-// unitl either the channel is closed or it encounters a log entry that is newer than endDateTime.
+// displayLogData listens to dataChan, rendering the buffers that it receives to the display as lines
+// unitl the channel is closed.
 //
 // Once the end of the data is encountered and displayed, displayLogData closes doneChan to signal
 // that the job is complete.
 //
 // If a problem occurs, fetchLogObjectData posts an error to errChan and returns without closing doneChan.
-func displayLogData(access *awsAccess, dataChan <-chan *aws.WriteAtBuffer, doneChan chan<- struct{}, errChan chan<- error) {
+func displayLogData(dataChan <-chan *aws.WriteAtBuffer, doneChan chan<- struct{}, errChan chan<- error) {
 
 	// Just testing the design - not real code
 	for awsBuff := range dataChan {
-		fmt.Println(string(awsBuff.Bytes()))
+
+		// AWS Web log objects end with a newline character so no need to "Println()"
+		fmt.Print(string(awsBuff.Bytes()))
 	}
 	close(doneChan)
 }
