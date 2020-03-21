@@ -12,43 +12,46 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-// A structure packing the various handles need to access S3 buckets
-// and the parameters for a given run.
-type awsAccess struct {
-	session       *session.Session // The S3 session
+// SlogSession is a structure packing the various parameters for a given run.
+type SlogSession struct {
+	awsSession    *session.Session // The S3 session
 	s3            *s3.S3           // The S3 client
-	bucket        string           // The name of the target bucket
-	folder        string           // The name of the folder to be walked within the bucket
-	startDateTime time.Time        // When reading logs, the timestamp of the earliest entry sought
-	endDateTime   time.Time        // When reading logs, the timestamp of the latest entry sought
+	Region        string           // The AWS region where the S3 bucket is hosted
+	Bucket        string           // The name of the target bucket
+	Folder        string           // The name of the folder to be walked within the bucket
+	StartDateTime time.Time        // When reading logs, the timestamp of the earliest entry sought
+	EndDateTime   time.Time        // When reading logs, the timestamp of the latest entry sought
 }
 
-// establishAWSAccess attempts to create an AWS session using the default
-// access key and secret defined by the shell environment and/or confguration
-// file. It then opens an S3 client using this session and returns the pair
-// in a single structure that can be passed around to worker functions that
-// need it.
-func establishAWSAccess(region string) (*awsAccess, error) {
+// activateSession adds an AWS session and and S3 client to a SlogSession
+// if they are not already populated.
+//
+// If all goes well, returns nil, otherwise an error.
+func activateSession(slogSession *SlogSession) error {
+
+	// If the session has already been actived, we have nothing to do
+	if slogSession.s3 != nil {
+		return nil
+	}
 
 	// Request a session with the default credentials for the default region
-	sess, err := session.NewSession(
+	awsSession, err := session.NewSession(
 		&aws.Config{
-			Region: aws.String(region),
+			Region: &slogSession.Region,
 		},
 	)
 	if err != nil {
 		fmt.Println("Error creating session: ", err)
-		return nil, err
+		return err
 	}
 
 	// Obtain an S3 service handle
-	s3Client := s3.New(sess)
+	s3Client := s3.New(awsSession)
 
-	// All good - return both wrapped with a bow
-	return &awsAccess{
-		session: sess,
-		s3:      s3Client,
-	}, nil
+	// All good - put those in the session and return happy
+	slogSession.awsSession = awsSession
+	slogSession.s3 = s3Client
+	return nil
 }
 
 // fetchLogObjectKeys loops requesting pages of object keys starting from, approximately,
@@ -58,28 +61,28 @@ func establishAWSAccess(region string) (*awsAccess, error) {
 //
 // If a problem occurs, fetchLogObjectKeys posts an error to errChan and terminates // returns
 // after closing keyChan.
-func fetchLogObjectKeys(access *awsAccess, keyChan chan<- string, errChan chan<- error) {
+func fetchLogObjectKeys(session *SlogSession, keyChan chan<- string, errChan chan<- error) {
 
 	// Form the folder prefix from the path provided
-	prefix := access.folder + "/"
+	prefix := session.Folder + "/"
 
 	// Format the start time to ther nearest minute and combine with the prefix
 	// to form the "start after" key
-	startAfter := prefix + access.startDateTime.UTC().Format("2006-01-02-15-04-05")
+	startAfter := prefix + session.StartDateTime.UTC().Format("2006-01-02-15-04-05")
 
 	// Calculate the key prefix that will signal we have reached the end
-	endAfter := prefix + access.endDateTime.UTC().Format("2006-01-02-15-04-05")
+	endAfter := prefix + session.EndDateTime.UTC().Format("2006-01-02-15-04-05")
 
 	// Set up our starting point for paging through S3 bucket keynames
 	input := &s3.ListObjectsV2Input{
 		MaxKeys:    aws.Int64(maxListKeys),
-		Bucket:     &access.bucket,
+		Bucket:     &session.Bucket,
 		Prefix:     &prefix,
 		StartAfter: &startAfter,
 	}
 
 	// Ask for the object list, with a callback function to receive pages of data
-	err := access.s3.ListObjectsV2Pages(input,
+	err := session.s3.ListObjectsV2Pages(input,
 		func(page *s3.ListObjectsV2Output, lastPage bool) bool {
 
 			// Loop through all the objects, sending their keys on to the next stage through keyChan
@@ -87,7 +90,7 @@ func fetchLogObjectKeys(access *awsAccess, keyChan chan<- string, errChan chan<-
 
 				// Confirm that we have a valid key that is not the parent folder
 				key := obj.Key
-				if key == nil || *key == access.folder {
+				if key == nil || *key == session.Folder {
 					continue
 				}
 

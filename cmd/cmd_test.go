@@ -119,14 +119,14 @@ func TestReadCommandStart(t *testing.T) {
 
 	// We should have a subcommand required command and a complete usage dump
 	assert.Nil(t, err, "error seen parsing valid start time")
-	assert.Equal(t, 2020, startDate.Year(), "Expected start year did not match")
-	assert.Equal(t, time.March, startDate.Month(), "Expected start month did not match")
-	assert.Equal(t, 4, startDate.Day(), "Expected start day did not match")
-	assert.Equal(t, 5, startDate.Hour(), "Expected start hour did not match")
-	assert.Equal(t, 6, startDate.Minute(), "Expected start minute did not match")
-	assert.Equal(t, 7, startDate.Second(), "Expected start second did not match")
-	assert.Equal(t, 0, startDate.Nanosecond(), "Expected start nanosecond did not match")
-	_, offset := startDate.Zone()
+	assert.Equal(t, 2020, startDateTime.Year(), "Expected start year did not match")
+	assert.Equal(t, time.March, startDateTime.Month(), "Expected start month did not match")
+	assert.Equal(t, 4, startDateTime.Day(), "Expected start day did not match")
+	assert.Equal(t, 5, startDateTime.Hour(), "Expected start hour did not match")
+	assert.Equal(t, 6, startDateTime.Minute(), "Expected start minute did not match")
+	assert.Equal(t, 7, startDateTime.Second(), "Expected start second did not match")
+	assert.Equal(t, 0, startDateTime.Nanosecond(), "Expected start nanosecond did not match")
+	_, offset := startDateTime.Zone()
 	assert.Equal(t, 8*3600, offset, "Expected start time zone did not match")
 }
 

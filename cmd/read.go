@@ -11,10 +11,10 @@ import (
 )
 
 var (
-	startDateStr string        // flag value defining the start time of the window to be processed
-	startDate    time.Time     // the start time of the window to be processed
-	windowStr    string        // flag value defining the duration / time span to be considered
-	window       time.Duration // the duration / time span to be considered
+	startDateStr  string        // flag value defining the start time of the window to be processed
+	startDateTime time.Time     // the start time of the window to be processed
+	windowStr     string        // flag value defining the duration / time span to be considered
+	window        time.Duration // the duration / time span to be considered
 )
 
 // readCmd represents the read command
@@ -36,7 +36,7 @@ S3 hosted web logs from a specified bucket for that time window.`,
 
 		// Parse the start time
 		var err error
-		startDate, err = time.Parse(time.RFC3339, startDateStr)
+		startDateTime, err = time.Parse(time.RFC3339, startDateStr)
 		if err != nil {
 			return fmt.Errorf("Invalid start date time: %w", err)
 		}
@@ -47,12 +47,21 @@ S3 hosted web logs from a specified bucket for that time window.`,
 			return fmt.Errorf("Invalid time window: %w", err)
 		}
 
-		// All is well with the command formating (to the best of our present knowledge).
+		// Polpulate a SlogSession to wrap our parameters up for the run
+		slogSession := &s3.SlogSession{
+			Region:        region,
+			Bucket:        args[0],
+			Folder:        path,
+			StartDateTime: startDateTime,
+			EndDateTime:   startDateTime.Add(window),
+		}
+
+		// All is well with the command formating and AWS access (to the best of our present knowledge).
 		// Go ahead and do the work unless we are unit testing.
 		fmt.Printf("Reading logs from %v/%v for with start=%v, window=%v seconds\n",
-			args[0], path, startDate.Format(time.RFC3339), window.Seconds())
+			args[0], path, startDateTime.Format(time.RFC3339), window.Seconds())
 		if !unitTesting {
-			err = s3.DisplayLog(region, args[0], path, startDate, window)
+			err = s3.DisplayLog(slogSession)
 		}
 		if err != nil {
 			// Placing the error check here rather than inside the !unitTesting block

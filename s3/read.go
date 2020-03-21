@@ -4,7 +4,6 @@ package s3
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -15,23 +14,17 @@ var (
 	maxListKeys int64 = 100 // Max number of keys to fetch per page; override for unit testing
 )
 
-// DisplayLog prints the Web logs from the given bucket and root path / folder, from
-// the given start time and for the given time window following that.
+// DisplayLog prints the Web logs from the bucket and root path / folder, between
+// the start and end times, defined in the given session structure.
 //
 // An error is returned if there is a proble, otherwise nil.
-func DisplayLog(region, bucket, folder string, startDateTime time.Time, window time.Duration) error {
+func DisplayLog(session *SlogSession) error {
 
-	// Obtain an access package populated with AWS session and S3 client
-	access, err := establishAWSAccess(region)
+	// Populate the session with AWS session and client handles
+	err := activateSession(session)
 	if err != nil {
 		return err
 	}
-
-	// Fill in the rest of the access structure
-	access.bucket = bucket
-	access.folder = folder
-	access.startDateTime = startDateTime
-	access.endDateTime = startDateTime.Add(window)
 
 	// Establish the various communicatiomn channels that we will need
 	errChan := make(chan error)                  // Used to signal errors that require the app DisplayLog to terminate
@@ -40,10 +33,10 @@ func DisplayLog(region, bucket, folder string, startDateTime time.Time, window t
 	doneChan := make(chan struct{})              // Used by the final display function to signal when it is finished
 
 	// Spin up the function that lists keys from the bucket
-	go fetchLogObjectKeys(access, keyChan, errChan)
+	go fetchLogObjectKeys(session, keyChan, errChan)
 
 	// Spin up the data fetching function that consumes those keys and pulls down the object content
-	go fetchLogObjectData(access, keyChan, dataChan, errChan)
+	go fetchLogObjectData(session, keyChan, dataChan, errChan)
 
 	// Spin up the data display function
 	go displayLogData(dataChan, doneChan, errChan)
@@ -63,10 +56,10 @@ func DisplayLog(region, bucket, folder string, startDateTime time.Time, window t
 //
 // If a problem occurs, fetchLogObjectData posts an error to errChan and terminates // returns after closing
 // dataChan.
-func fetchLogObjectData(access *awsAccess, keyChan <-chan string, dataChan chan<- *aws.WriteAtBuffer, errChan chan<- error) {
+func fetchLogObjectData(session *SlogSession, keyChan <-chan string, dataChan chan<- *aws.WriteAtBuffer, errChan chan<- error) {
 
 	// Establish a download manager
-	downloader := s3manager.NewDownloaderWithClient(access.s3)
+	downloader := s3manager.NewDownloaderWithClient(session.s3)
 
 	// For all the keys we get through the channel ...
 	for key := range keyChan {
@@ -77,7 +70,7 @@ func fetchLogObjectData(access *awsAccess, keyChan <-chan string, dataChan chan<
 		// Download the object
 		_, err := downloader.Download(awsBuff,
 			&s3.GetObjectInput{
-				Bucket: aws.String(access.bucket),
+				Bucket: aws.String(session.Bucket),
 				Key:    aws.String(key),
 			})
 
