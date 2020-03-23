@@ -114,7 +114,7 @@ func TestActivateSessiont(t *testing.T) {
 
 		// Activating it for a second time
 		err = activateSession(slogSess)
-		assert.True(t, err == nil, "activateSession twice should have succeeded: %v", err)
+		assert.Nil(t, err, "activateSession twice should have succeeded: %v", err)
 		assert.Equal(t, awsSession, slogSess.awsSession, "Double activation should not have changed the AWS session")
 		assert.Equal(t, s3, slogSess.s3, "Double activation should not have changed the S3 client")
 	}

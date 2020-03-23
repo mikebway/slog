@@ -3,10 +3,12 @@ package s3
 // Unit tests for the slogs S3 read functions
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -77,4 +79,46 @@ func TestReadSessiontFailure(t *testing.T) {
 	slogSess := newTestSlogSession()
 	err := DisplayLog(slogSess)
 	assert.NotNil(t, err, "Should not have been able to display logs with a session activation error")
+}
+
+// TestMissingLogObject sees how fetchLogObjectData(..) handles an error when downloading
+// log data from a given key.
+func TestMissingLogObject(t *testing.T) {
+
+	// Obtain an activated session
+	slogSess := newTestSlogSession()
+	err := activateSession(slogSess)
+	assert.Nil(t, err, "activateSession should have succeeded: %v", err)
+
+	// Establish the channels needed to communicate with TestMissingLogObject(..) as
+	// a Go routine (though we will not run it as a Go routine)
+	errChan := make(chan error, 5)               // Used to signal errors that require the app DisplayLog to terminate
+	keyChan := make(chan string, 5)              // Distributes S3 object keys listed from the log bucket
+	dataChan := make(chan *aws.WriteAtBuffer, 5) // Distributes AWS wrapped byte buffers downloaded from S3 objects
+
+	// Whatever happens with this test, we should not leave any channels open
+	defer func() {
+		close(errChan)
+		close(keyChan)
+	}()
+
+	// Load a key value intto the keyChan that we know will not exist in the bucket.
+	// keyChan is buffered so will not halt waiting for somebody to read from it
+	keyChan <- "I-do-not-exist-2300-12-31"
+
+	// The function we are testing should fail quickly so there is no need to spin it
+	// up as a Go routine in its own thread. We log what we are doing to help a little
+	// if the human observer needs to diagnose where a test timeout occurred.
+	fmt.Println("Launching fetchLogObjectData(..) to see it fail")
+	go fetchLogObjectData(slogSess, keyChan, dataChan, errChan)
+
+	// We should arrive back here long before the test harness times us out
+	fmt.Println("fetchLogObjectData(..) returned, now fetching the expected error")
+	err = <-errChan
+	assert.NotNil(t, err, "fetchLogObjectData should have piped an error: %v", err)
+
+	// dataChan should have been closed but the only way to find out if that is the case
+	// is to try to read from it and hope the test does not time out wiating on it
+	fmt.Println("Confirming that the data channel has been closed")
+	<-dataChan
 }
