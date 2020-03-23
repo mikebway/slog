@@ -1,7 +1,7 @@
 # slog - A CLI Utility for Managing S3 Static Web Site Logs
 
 slog allows you to sequentially view access log data from web sites that are hosted
-and served from Amazon S3 buckets. 
+and served from Amazon S3 buckets.
 
 If you follow the [AWS directions for hosting static Web content](https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html),
 and [configure traffic logging](https://docs.aws.amazon.com/AmazonS3/latest/dev/LoggingWebsiteTraffic.html),
