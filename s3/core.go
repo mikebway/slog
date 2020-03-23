@@ -68,10 +68,11 @@ func fetchLogObjectKeys(session *SlogSession, keyChan chan<- string, errChan cha
 
 	// Format the start time to ther nearest minute and combine with the prefix
 	// to form the "start after" key
-	startAfter := prefix + session.StartDateTime.UTC().Format("2006-01-02-15-04-05")
+	const keyTimeFormat = "2006-01-02-15-04-05"
+	startAfter := prefix + session.StartDateTime.UTC().Format(keyTimeFormat)
 
 	// Calculate the key prefix that will signal we have reached the end
-	endAfter := prefix + session.EndDateTime.UTC().Format("2006-01-02-15-04-05")
+	endAfter := prefix + session.EndDateTime.UTC().Format(keyTimeFormat)
 
 	// Set up our starting point for paging through S3 bucket keynames
 	input := &s3.ListObjectsV2Input{

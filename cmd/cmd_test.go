@@ -1,5 +1,7 @@
 package cmd
 
+// Unit tests for the Cobra command line parsers
+
 import (
 	"bytes"
 	"testing"
@@ -8,8 +10,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
-
-// Unit tests for the Cobra command line parsers
 
 // Initialization block
 func init() {
@@ -79,9 +79,9 @@ func TestBareReadCommand(t *testing.T) {
 	// Run the command
 	output, err := executeCommand("read")
 
-	// We should have a subcommand required command and a complete usage dump
+	// We should have a bucket required error but no usage displayed
 	assert.Equal(t, "An S3 bucket name must be provided", err.Error(), "Expected S3 bucket name required error")
-	assert.Contains(t, output, "slog read bucket [flags]", "Expected read command usage display")
+	assert.Empty(t, output, "Expected no usage display")
 }
 
 // TestReadCommandTooMany examines the case where a read command is requested
@@ -91,9 +91,9 @@ func TestReadCommandTooMany(t *testing.T) {
 	// Run the command
 	output, err := executeCommand("read", "bucket", "one-too-many")
 
-	// We should have a subcommand required command and a complete usage dump
+	// We should have a only one bucket name expected error and no usage display
 	assert.Equal(t, "Only expected a single bucket name argument", err.Error(), "Expected S3 bucket name required error")
-	assert.Contains(t, output, "slog read bucket [flags]", "Expected read command usage display")
+	assert.Empty(t, output, "Expected no usage display")
 }
 
 // TestReadCommandBadStart examines the case where a read command is requested
@@ -103,12 +103,12 @@ func TestReadCommandBadStart(t *testing.T) {
 	// Run the command
 	output, err := executeCommand("read", "bucket", "--start", "blargle")
 
-	// We should have a subcommand required command and a complete usage dump
+	// We should have am invalid start time error and no usage display
 	assert.Equal(t,
 		"Invalid start date time: parsing time \"blargle\" as \"2006-01-02T15:04:05Z07:00\": cannot parse \"blargle\" as \"2006\"",
 		err.Error(),
 		"Expected invalid --start value error")
-	assert.Contains(t, output, "slog read bucket [flags]", "Expected read command usage display")
+	assert.Empty(t, output, "Expected no usage display")
 }
 
 // TestReadCommandStart examines whether start time parsing is correctly handled by the read command
@@ -137,12 +137,12 @@ func TestReadCommandBadWindow(t *testing.T) {
 	// Run the command
 	output, err := executeCommand("read", "bucket", "--window", "blargle")
 
-	// We should have a subcommand required command and a complete usage dump
+	// We should have am invalid time window error and no usage display
 	assert.Equal(t,
 		"Invalid time window: Cannot parse time window length",
 		err.Error(),
 		"Expected invalid --window value error")
-	assert.Contains(t, output, "slog read bucket [flags]", "Expected read command usage display")
+	assert.Empty(t, output, "Expected no usage display")
 }
 
 // TestReadCommandWindow examines whether time window parsing is correctly handled by the read command

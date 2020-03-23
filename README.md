@@ -36,10 +36,38 @@ Flags:
 Use "slog [command] --help" for more information about a command.
 ```
 
-## Unit Testing
+## Unit / Integration Testing
 
-To run all of the unit tests from the command line and receive a coverage report:
+The unit tests are really more like integration tests in that they will invoke
+AWS S3 API calls. This requires access to an S3 bucket with the web logs from
+S3 hosted web content. If the parameters for this log bucket were hard coded
+in the unit tests, nobody but the oroiginal auther would be able to run the
+tests so these parameters can be set through environment variables as follows:
+
+```bash
+export SLOG_TEST_REGION=us-east-1
+export SLOG_TEST_BUCKET=log.mikebroadway.com
+export SLOG_TEST_FOLDER=root
+export SLOG_TEST_START_DATETIME=2020-03-20T13:30:00Z
+export SLOG_TEST_END_DATETIME=2020-03-20T14:00:00Z
+export SLOG_TEST_CONTAINS="AA960FCC76F5673E WEBSITE.GET.OBJECT robots.txt"
+```
+
+The `SLOG_TEST_CONTAINS` varibale must describe a portion of the log content
+that will be found somewhere between the start and end date and time given in the
+other variables.
+
+With the environment variables set, you can run all of the unit tests from the
+command line and receive a coverage report:
 
 ```bash
 go test -cover ./...
+```
+
+To ensure that all tests are run, and that none are assumed unchanged for the
+cache of a previous run, you may add the `-count=1` flag to required that all
+tests are run at least and exactly once:
+
+```bash
+go test -cover -count=1 ./...
 ```
