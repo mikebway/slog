@@ -36,6 +36,18 @@ Flags:
 Use "slog [command] --help" for more information about a command.
 ```
 
+## What's Missing
+
+I intend to add a `delete` command at some point, to clear out old logs up to a
+given date. To unit/integration test without risking real log data I would need to
+write fake log data to a safe bucket location. My own web site sees so little
+traffic that I lack the incentive to roll my selaves up and get all that done yet.
+
+The `read` command displays raw log data exactly as written by Amazon. This is
+noisy and contains much that has little value while filling the screen. While
+preserving the ability to see this raw data if explicitly requested, I would
+like the default display to be slimmer and more efficient.
+
 ## Unit / Integration Testing
 
 The unit tests are really more like integration tests in that they will invoke
