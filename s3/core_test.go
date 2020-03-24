@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Variables required to drive the tests
@@ -100,7 +100,7 @@ func TestActivateSessiont(t *testing.T) {
 	// Create and activate the session
 	slogSess := newTestSlogSession()
 	err := activateSession(slogSess)
-	assert.True(t, err == nil, "activateSession should have succeeded: %v", err)
+	require.True(t, err == nil, "activateSession should have succeeded: %v", err)
 
 	// If we have a healthy session, all be it largely unpopulated ...
 	if err == nil {
@@ -114,9 +114,9 @@ func TestActivateSessiont(t *testing.T) {
 
 		// Activating it for a second time
 		err = activateSession(slogSess)
-		assert.Nil(t, err, "activateSession twice should have succeeded: %v", err)
-		assert.Equal(t, awsSession, slogSess.awsSession, "Double activation should not have changed the AWS session")
-		assert.Equal(t, s3, slogSess.s3, "Double activation should not have changed the S3 client")
+		require.Nil(t, err, "activateSession twice should have succeeded: %v", err)
+		require.Equal(t, awsSession, slogSess.awsSession, "Double activation should not have changed the AWS session")
+		require.Equal(t, s3, slogSess.s3, "Double activation should not have changed the S3 client")
 	}
 }
 
@@ -135,5 +135,5 @@ func TestActivateSessiontFailure(t *testing.T) {
 	// Create and activate the session
 	slogSess := newTestSlogSession()
 	err := activateSession(slogSess)
-	assert.True(t, err != nil, "activateSession should have failed with a fad environment")
+	require.True(t, err != nil, "activateSession should have failed with a fad environment")
 }

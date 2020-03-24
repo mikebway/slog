@@ -9,46 +9,67 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// TestReadEndToEnd runs the full, happy path, pipeline of the read command.
-func TestReadEndToEnd(t *testing.T) {
+// captureLog wraps DisplayLog(..) to capture the output for subsequent examination
+// by a test.
+func captureLog(slogSess *SlogSession) (string, error) {
 
-	// Will substitute our own pipe for stdout to collect the log output
+	// We substitute our own pipe for stdout to collect the log output
 	// but must be carefule to always restore stadt and close the pripe files.
 	originalStdout := os.Stdout
 	readFile, writeFile, err := os.Pipe()
+	if err != nil {
+		return "", fmt.Errorf("Failed to create pipe for stdout: %v", err)
+	}
+
+	// Restore original stdout even if something goes wrong
 	defer func() {
-		// Restore original stdout if something goes wrong
 		os.Stdout = originalStdout
 		writeFile.Close()
 		readFile.Close()
 	}()
 
 	// Set our own pipe as stdout
-	assert.Nil(t, err, "Failed to create pipe for stdout: %v", err)
 	os.Stdout = writeFile
+
+	// Run the pipeline, collecting the log output in our writeFile
+	err = DisplayLog(slogSess)
+	if err != nil {
+		return "", err
+	}
+
+	// Restore stdout and close the write end of the pipe so that we can collect the ouput
+	os.Stdout = originalStdout
+	writeFile.Close()
+
+	// Gather the output into a byte buffer
+	outputBytes, err := ioutil.ReadAll(readFile)
+	if err != nil {
+		return "", fmt.Errorf("Failed to read pipe for stdout: %v", err)
+	}
+
+	// Return the output as a string
+	return string(outputBytes), nil
+}
+
+// TestReadEndToEnd runs the full, happy path, pipeline of the read command.
+func TestReadEndToEnd(t *testing.T) {
 
 	// Obtain a session (inactive) populated with target bucket values
 	// but ask for raw content to get the most data to match with our target string below
 	slogSess := newTestSlogSession()
 	slogSess.Content = RAW
 
-	// Run the pipeline, collecting the log output in our writeFile
-	err = DisplayLog(slogSess)
-
-	// Restore stdout and close the write end of the pipe so that we can see how the test goes!!
-	os.Stdout = originalStdout
-	writeFile.Close()
+	// Run the DisplayLog(..) pipeline, collecting the log output for analysis
+	output, err := captureLog(slogSess)
 
 	// Confirm that DisplayLog did not return an error
-	assert.Nil(t, err, "DisplayLog failed unexpectedly: %v", err)
+	require.Nil(t, err, "DisplayLog or capture failed unexpectedly: %v", err)
 
-	// Leats see what the log wrote ...
-	outputBytes, err := ioutil.ReadAll(readFile)
-	output := string(outputBytes)
-	assert.Contains(t, output, targetContains, "Log output did not contain the expected data")
+	// Check that the log conatianed what we expected
+	require.Contains(t, output, targetContains, "Log output did not contain the expected data")
 }
 
 // TestReadBadBucket examines what happens if the specified bucket does not exist.
@@ -63,7 +84,7 @@ func TestReadBadBucket(t *testing.T) {
 	err := DisplayLog(slogSess)
 
 	// If that did not return an error I will eat my hat!
-	assert.NotNil(t, err, "Should not have been able to display logs from a non-existent bucket")
+	require.NotNil(t, err, "Should not have been able to display logs from a non-existent bucket")
 }
 
 // TestReadSessiontFailure looks at how DisplayLog handles a failure to activate the
@@ -81,7 +102,7 @@ func TestReadSessiontFailure(t *testing.T) {
 	// Try to display the logs and confirm that it blows up
 	slogSess := newTestSlogSession()
 	err := DisplayLog(slogSess)
-	assert.NotNil(t, err, "Should not have been able to display logs with a session activation error")
+	require.NotNil(t, err, "Should not have been able to display logs with a session activation error")
 }
 
 // TestMissingLogObject sees how fetchLogObjectData(..) handles an error when downloading
@@ -91,7 +112,7 @@ func TestMissingLogObject(t *testing.T) {
 	// Obtain an activated session
 	slogSess := newTestSlogSession()
 	err := activateSession(slogSess)
-	assert.Nil(t, err, "activateSession should have succeeded: %v", err)
+	require.Nil(t, err, "activateSession should have succeeded: %v", err)
 
 	// Establish the channels needed to communicate with TestMissingLogObject(..) as
 	// a Go routine (though we will not run it as a Go routine)
@@ -118,7 +139,7 @@ func TestMissingLogObject(t *testing.T) {
 	// We should arrive back here long before the test harness times us out
 	fmt.Println("fetchLogObjectData(..) returned, now fetching the expected error")
 	err = <-errChan
-	assert.NotNil(t, err, "fetchLogObjectData should have piped an error: %v", err)
+	require.NotNil(t, err, "fetchLogObjectData should have piped an error: %v", err)
 
 	// dataChan should have been closed but the only way to find out if that is the case
 	// is to try to read from it and hope the test does not time out wiating on it
@@ -137,7 +158,7 @@ func TestReadBadContentType(t *testing.T) {
 	err := DisplayLog(slogSess)
 
 	// If that did not return an error I will eat my hat!
-	assert.NotNil(t, err, "Should not have been able to display logs with an invalid content type")
+	require.NotNil(t, err, "Should not have been able to display logs with an invalid content type")
 }
 
 // TestReadContentTypes goes some way to confirmin that all of the different content types
@@ -146,4 +167,46 @@ func TestReadBadContentType(t *testing.T) {
 // we do here is confirm that each type produces a different and non-zero answer.
 func TestReadContentTypes(t *testing.T) {
 
+	// Start with a default session definition
+	slogSess := newTestSlogSession()
+
+	// Basic content will be the smallest
+	slogSess.Content = BASIC
+	basicOutput, err := captureLog(slogSess)
+	require.Nil(t, err, "Failed to capture basic log content: %v", err)
+	basicLength := len(basicOutput)
+
+	// Repeat for Request ID content
+	slogSess.Content = REQUESTID
+	requestIDOutput, err := captureLog(slogSess)
+	require.Nil(t, err, "Failed to capture request ID log content: %v", err)
+	requestIDLength := len(requestIDOutput)
+
+	// Repeat for bucket content
+	slogSess.Content = BUCKET
+	bucketOutput, err := captureLog(slogSess)
+	require.Nil(t, err, "Failed to capture bucket log content: %v", err)
+	bucketLength := len(bucketOutput)
+
+	// Repeat for rich content
+	slogSess.Content = RICH
+	richOutput, err := captureLog(slogSess)
+	require.Nil(t, err, "Failed to capture bucket log content: %v", err)
+	richLength := len(richOutput)
+
+	// Repeat for rich content
+	slogSess.Content = RAW
+	rawOutput, err := captureLog(slogSess)
+	require.Nil(t, err, "Failed to capture bucket log content: %v", err)
+	rawLength := len(rawOutput)
+
+	// Compare the length to ensure that they are as we expect, relatively speaking at least
+	require.Greater(t, basicLength, 0, "Basic content length must be longer than zero bytes")
+	require.Greater(t, rawLength, basicLength, "Raw content length must be longer than basic")
+	require.Greater(t, rawLength, requestIDLength, "Raw content length must be longer than request ID")
+	require.Greater(t, rawLength, bucketLength, "Raw content length must be longer than bucket")
+	require.Greater(t, rawLength, richLength, "Raw content length must be longer than rich")
+	require.Greater(t, requestIDLength, basicLength, "Raw content length must be longer than basic")
+	require.Greater(t, bucketLength, basicLength, "Bucket content length must be longer than basic")
+	require.Greater(t, richLength, bucketLength, "Bucket content length must be longer than bucket")
 }
