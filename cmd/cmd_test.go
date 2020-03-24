@@ -226,9 +226,9 @@ func TestReadCommandContentTypes(t *testing.T) {
 	require.Equal(t, s3.BASIC, slogSession.Content, "SlogSession not populated with the right content type")
 
 	// Run the command specifying the request content type
-	executeCommand("read", "bucket", "--content", "request")
+	executeCommand("read", "bucket", "--content", "requestid")
 	require.Nil(t, executeError, "request should have been an acceptable content type")
-	require.Equal(t, s3.REQUEST, slogSession.Content, "SlogSession not populated with the right content type")
+	require.Equal(t, s3.REQUESTID, slogSession.Content, "SlogSession not populated with the right content type")
 
 	// Run the command specifying the bucket content type
 	executeCommand("read", "bucket", "--content", "bucket")

@@ -106,12 +106,12 @@ func initReadFlags() {
 For example '90s' for 90 seconds. '36h' for 36 hours.`)
 	readCmd.Flags().StringVar(&contentTypeStr, "content", "basic",
 		`Content to include in the log output; must be one of the following:
-   basic   - minimal useful content, no bucket names, owners, request IDs etc
-   request - includes the request ID
-   bucket  - prefixed with the Web source bucket name (usefull if capturing
-		 logs from multipe buckets into one location)
-   rich    - includes bucket, request ID, operation and key values
-   raw     - the whole enchilada, as originally recorded by AWS
+   basic     - minimal useful content, no bucket names, owners, request IDs etc
+   requestid - includes the request ID
+   bucket    - prefixed with the Web source bucket name (usefull if capturing
+               logs from multipe buckets into one location)
+   rich      - includes bucket, request ID, operation and key values
+   raw       - the whole enchilada, as originally recorded by AWS
 `)
 }
 
@@ -153,8 +153,8 @@ func validateContentType() error {
 	switch contentTypeStr {
 	case "basic":
 		contentType = s3.BASIC
-	case "request":
-		contentType = s3.REQUEST
+	case "requestid":
+		contentType = s3.REQUESTID
 	case "bucket":
 		contentType = s3.BUCKET
 	case "rich":

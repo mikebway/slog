@@ -17,11 +17,11 @@ type ContentType int
 
 // The possible values of ContentType; defaults to BASIC
 const (
-	BASIC ContentType = iota
-	REQUEST
-	BUCKET
-	RICH
-	RAW
+	BASIC     ContentType = iota // minimal useful content, no bucket names, owners, request IDs etc
+	REQUESTID                    // BASIC plus the request ID
+	BUCKET                       // BASIC plus the bucket named from which the request was served
+	RICH                         // Includes bucket, request ID, operation and key values
+	RAW                          // The whole enchilada, as originally recorded by AWS
 )
 
 // SlogSession is a structure packing the various parameters for a given run.

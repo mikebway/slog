@@ -31,7 +31,9 @@ func TestReadEndToEnd(t *testing.T) {
 	os.Stdout = writeFile
 
 	// Obtain a session (inactive) populated with target bucket values
+	// but ask for raw content to get the most data to match with our target string below
 	slogSess := newTestSlogSession()
+	slogSess.Content = RAW
 
 	// Run the pipeline, collecting the log output in our writeFile
 	err = DisplayLog(slogSess)
@@ -49,7 +51,8 @@ func TestReadEndToEnd(t *testing.T) {
 	assert.Contains(t, output, targetContains, "Log output did not contain the expected data")
 }
 
-// TestReadBadBucket examines what happens if the specified. It should fail fast.
+// TestReadBadBucket examines what happens if the specified bucket does not exist.
+// It should fail fast!
 func TestReadBadBucket(t *testing.T) {
 
 	// Build a session object with an invalid bucktt name
@@ -121,4 +124,26 @@ func TestMissingLogObject(t *testing.T) {
 	// is to try to read from it and hope the test does not time out wiating on it
 	fmt.Println("Confirming that the data channel has been closed")
 	<-dataChan
+}
+
+// TestReadBadContentType examines what happens if the specified. It should fail fast.
+func TestReadBadContentType(t *testing.T) {
+
+	// Build a session object with an invalid content type
+	slogSess := newTestSlogSession()
+	slogSess.Content = RAW + 197 // This is not a valid content type
+
+	// Try to display the logs form the non-existent bucket
+	err := DisplayLog(slogSess)
+
+	// If that did not return an error I will eat my hat!
+	assert.NotNil(t, err, "Should not have been able to display logs with an invalid content type")
+}
+
+// TestReadContentTypes goes some way to confirmin that all of the different content types
+// work. Short of a well trained AI model, there is no way to easily confirm that the content
+// contain exactly the right fields - we will leave that for a manuall inspection - so all
+// we do here is confirm that each type produces a different and non-zero answer.
+func TestReadContentTypes(t *testing.T) {
+
 }

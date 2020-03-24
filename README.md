@@ -36,18 +36,41 @@ Flags:
 Use "slog [command] --help" for more information about a command.
 ```
 
+Asking for help on the read command using `slog help read` will give the following
+usage information:
+
+```text
+Given a start date and time, together with a time window, displays the
+S3 hosted web logs from a specified bucket for that time window.
+
+Usage:
+  slog read bucket [flags]
+
+Flags:
+      --content string   Content to include in the log output; must be one of the following:
+                            basic     - minimal useful content, no bucket names, owners, request IDs etc
+                            requestid - includes the request ID
+                            bucket    - prefixed with the Web source bucket name (usefull if capturing
+                                        logs from multipe buckets into one location)
+                            rich      - includes bucket, request ID, operation and key values
+                            raw       - the whole enchilada, as originally recorded by AWS
+                          (default "basic")
+  -h, --help             help for read
+      --start string     Start date time in the form 2020-01-02T15:04:05Z07:00 form with time zone offset (default "2020-01-01T00:00:00-00:00")
+      --window string    Time window in the days (d), hours (h), minutes (m) or seconds (s).
+                         For example '90s' for 90 seconds. '36h' for 36 hours. (default "1h")
+
+Global Flags:
+      --path string     The path of the log data within the S3 bucket (default "root")
+      --region string   the aws region to target (default "us-east-1")
+```
+
 ## What's Missing
 
 I intend to add a `delete` command at some point, to clear out old logs up to a
-given date. To unit/integration test without risking real log data I would need to
+given date. To unit/integration test this without risking real log data I would need to
 write fake log data to a safe bucket location. My own web site sees so little
-traffic that I lack the incentive to roll my selaves up and get all that done yet.
-
-The `read` command displays raw log data exactly as written by Amazon. This is
-noisy and contains much that has little value while filling the screen; see
-[Amazon S3 Server Access Log Format](https://docs.aws.amazon.com/AmazonS3/latest/dev/LogFormat.html).
-While preserving the ability to see this raw data if explicitly requested, I would
-like the default display to be slimmer and more efficient.
+traffic that I lack the incentive to roll my sleaves up and get all that done yet.
 
 ## Unit / Integration Testing
 

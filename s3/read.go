@@ -40,7 +40,7 @@ func DisplayLog(session *SlogSession) error {
 	go fetchLogObjectData(session, keyChan, dataChan, errChan)
 
 	// Spin up the data display function
-	go displayLogData(dataChan, doneChan, errChan)
+	go displayLogData(session, dataChan, doneChan, errChan)
 
 	// Wait until we are done or see an error
 	select {
@@ -94,28 +94,128 @@ func fetchLogObjectData(session *SlogSession, keyChan <-chan string, dataChan ch
 // Once the end of the data is encountered and displayed, displayLogData closes doneChan to signal
 // that the job is complete.
 //
-// If a problem occurs, fetchLogObjectData posts an error to errChan and returns without closing doneChan.
-func displayLogData(dataChan <-chan *aws.WriteAtBuffer, doneChan chan<- struct{}, errChan chan<- error) {
+// If a problem occurs, displayLogData posts an error to errChan and returns without closing doneChan.
+func displayLogData(session *SlogSession, dataChan <-chan *aws.WriteAtBuffer, doneChan chan<- struct{}, errChan chan<- error) {
 
-	// Just testing the design - not real code
+	// Process each buffer delivered through dataChan
 	for awsBuff := range dataChan {
 
-		// Break the buffer into lines that we can evaluate
-		lines := strings.Split(string(awsBuff.Bytes()), "\n")
+		// Displaying raw data requires much less processing than selective log output
+		// so we handle that separately and here, in a tighter loop
+		if session.Content == RAW {
 
-		// Loop over the lines, applying the requested treatment
-		for _, line := range lines {
+			// AWS Web log objects end with a newline character so no need to "Println()"
+			fmt.Print(string(awsBuff.Bytes()))
+			continue
+		}
 
-			// Skip blank lines
-			if len(line) == 0 {
-				continue
-			}
-
-			// If we are doing raw content display, just output the line
-
-			// Display the treated (or untreated) line
-			fmt.Println(line)
+		// Not displaying raw log content ...
+		// We have to break up the buffer and manipulate the lines that it contains
+		err := displaySelectLogData(session, awsBuff)
+		if err != nil {
+			errChan <- err
+			return
 		}
 	}
 	close(doneChan)
+}
+
+// displaySelectLogData eliminates cruft from the raw AWS web log data and displays a subset of the
+// fields contained in each line, as dictated by the SlogSession.Content value.
+func displaySelectLogData(session *SlogSession, awsBuff *aws.WriteAtBuffer) error {
+
+	// Break the buffer into lines that we can evaluate
+	lines := strings.Split(string(awsBuff.Bytes()), "\n")
+
+	// Loop over the lines, applying the requested treatment
+	for _, line := range lines {
+
+		// Skip blank lines
+		if len(line) == 0 {
+			continue
+		}
+
+		// Process the line based on the content type requested
+		switch session.Content {
+		case BASIC:
+			line = basicContent(line)
+		case REQUESTID:
+			line = requestContent(line)
+		case BUCKET:
+			line = bucketContent(line)
+		case RICH:
+			line = richContent(line)
+		default:
+			return fmt.Errorf("No implementation for content type: %d", session.Content)
+		}
+
+		// Display the treated (or untreated) line
+		fmt.Println(line)
+	}
+
+	return nil
+}
+
+// basicContent returns the least amount of information from raw AWS web log entries, typically
+// more than enough to be useful without filling the screen with noise.
+func basicContent(line string) string {
+
+	// Split the line into words / fields. This is problematic since some fields actually contain spaces :-(
+	parts := strings.Split(line, " ")
+
+	// Build up parts from consecutive runs of fields that we want. The problem lies
+	// with the User-Agent field that will contain a variable number of spaces and thus generate
+	// a variable number of parts. We over come this by slicing the parts from the start of the User-Agent
+	// to a count back from the end of parts we do not want at the end of the line.
+	count := len(parts)
+	part1 := strings.Join(parts[2:5], " ")
+	part2 := strings.Join(parts[9:count-7], " ")
+
+	// Add the parts together and return
+	return part1 + " " + part2
+}
+
+// requestContent returns the basic content plus the Amazon generated request ID.
+func requestContent(line string) string {
+
+	// See algorithm comments in basicContent(..)
+	parts := strings.Split(line, " ")
+	count := len(parts)
+	part1 := strings.Join(parts[2:5], " ")
+	requestID := parts[6]
+	part2 := strings.Join(parts[9:count-7], " ")
+
+	// Add the parts together and return
+	return part1 + " " + requestID + " " + part2
+}
+
+// bucketContent returns the the basic content plus the name of the S3 bucket that it was served from.
+// This is useful if the log bucket is being used to collect Web log data associated with multiple
+// buckets, for example where blog pages are served out of one bucket but images or Javascript
+// files are served from another.
+func bucketContent(line string) string {
+
+	// See algorithm comments in basicContent(..)
+	parts := strings.Split(line, " ")
+	count := len(parts)
+	part1 := strings.Join(parts[1:5], " ")
+	part2 := strings.Join(parts[9:count-7], " ")
+
+	// Add the parts together and return
+	return part1 + " " + part2
+}
+
+// richContent returns most of the data from the log entry but excludes distracting noise like
+// the AWS ID for bucket owner etc. These take up a lot of space and are not typically of interest
+// to Web site managers.
+func richContent(line string) string {
+
+	// See algorithm comments in basicContent(..)
+	parts := strings.Split(line, " ")
+	count := len(parts)
+	part1 := strings.Join(parts[1:5], " ")
+	part2 := strings.Join(parts[6:count-7], " ")
+
+	// Add the parts together and return
+	return part1 + " " + part2
 }
