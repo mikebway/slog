@@ -44,8 +44,9 @@ write fake log data to a safe bucket location. My own web site sees so little
 traffic that I lack the incentive to roll my selaves up and get all that done yet.
 
 The `read` command displays raw log data exactly as written by Amazon. This is
-noisy and contains much that has little value while filling the screen. While
-preserving the ability to see this raw data if explicitly requested, I would
+noisy and contains much that has little value while filling the screen; see
+[Amazon S3 Server Access Log Format](https://docs.aws.amazon.com/AmazonS3/latest/dev/LogFormat.html).
+While preserving the ability to see this raw data if explicitly requested, I would
 like the default display to be slimmer and more efficient.
 
 ## Unit / Integration Testing

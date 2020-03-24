@@ -44,6 +44,15 @@ func Execute() {
 
 func init() {
 
+	// Initialize the flags that apply to the root command and, potentially, to subcommands
+	initRootFlags()
+}
+
+// initRootFlags is called from init() to define the flags that apply to the root
+// command, and might be inherited by its subcommands. It is defined separately from
+// init() so that it can be invoked by unit tests when they need to reset the playing field.
+func initRootFlags() {
+
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.

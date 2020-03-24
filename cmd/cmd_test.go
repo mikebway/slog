@@ -7,8 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Initialization block
@@ -18,27 +17,47 @@ func init() {
 	unitTesting = true
 }
 
-// Modified from https://chromium.googlesource.com/external/github.com/spf13/cobra/+/refs/heads/master/command_test.go
-func executeCommand(args ...string) (output string, err error) {
-	_, output, err = executeCommandC(args...)
-	return output, err
-}
+// executeCommand invokes Execute() while capturing its output
+// to return for analysis. Any error will have been collected in the
+// executeError package global.
+func executeCommand(args ...string) string {
 
-// Modified from https://chromium.googlesource.com/external/github.com/spf13/cobra/+/refs/heads/master/command_test.go
-func executeCommandC(args ...string) (c *cobra.Command, output string, err error) {
+	// Ensure that we are in a sweet and innocent state
+	resetCommand()
 
-	// Handle the special case of no arguaments. Cobra treats nil arguements
-	// differently from empty arguments, typing itself in a small knot and inventing
-	// something from the stack.
-	if args == nil {
-		args = []string{}
-	}
-
+	// Arrange to collect the output in a buffer
 	buf := new(bytes.Buffer)
 	rootCmd.SetOutput(buf)
+
+	// Set the arguments and invoke the normal Execute() package entry point
 	rootCmd.SetArgs(args)
-	c, err = rootCmd.ExecuteC()
-	return c, buf.String(), err
+	Execute()
+
+	// Return the output as a string
+	return buf.String()
+}
+
+// resetCommand clears both command specific parameter values and
+// global ones so that tests can be run in a known "virgin" state.
+func resetCommand() {
+
+	// Reset read command specific values
+	startDateStr = ""
+	startDateTime = time.Time{}
+	windowStr = ""
+	window = time.Duration(0)
+	contentType = ""
+
+	// Reset the global values
+	executeError = nil
+	region = ""
+	path = ""
+
+	// Clear and then re-initialize all the flags definitions
+	rootCmd.ResetFlags()
+	readCmd.ResetFlags()
+	initRootFlags()
+	initReadFlags()
 }
 
 // TestExecute maximizes coverage by invoking cmd.Execute().
@@ -47,14 +66,12 @@ func executeCommandC(args ...string) (c *cobra.Command, output string, err error
 func TestExecute(t *testing.T) {
 
 	// Execute the slog command with no parameters
-	buf := new(bytes.Buffer)
-	rootCmd.SetOutput(buf)
-	rootCmd.SetArgs([]string{})
-	Execute()
+	output := executeCommand()
 
 	// We should have a subcommand required command and a complete usage dump
-	assert.Equal(t, "subcommand is required", executeError.Error(), "Expected subcommand required error")
-	assert.Contains(t, buf.String(),
+	require.NotNil(t, executeError, "there should have been an error")
+	require.Equal(t, "subcommand is required", executeError.Error(), "Expected subcommand required error")
+	require.Contains(t, output,
 		"Slog is a CLI utility for reading and culling web access logs stored in S3",
 		"Expected full usage display")
 }
@@ -63,11 +80,12 @@ func TestExecute(t *testing.T) {
 func TestBareCommand(t *testing.T) {
 
 	// Run a blank command
-	output, err := executeCommand()
+	output := executeCommand()
 
 	// We should have a subcommand required command and a complete usage dump
-	assert.Equal(t, "subcommand is required", err.Error(), "Expected subcommand required error")
-	assert.Contains(t, output,
+	require.NotNil(t, executeError, "there should have been an error")
+	require.Equal(t, "subcommand is required", executeError.Error(), "Expected subcommand required error")
+	require.Contains(t, output,
 		"Slog is a CLI utility for reading and culling web access logs stored in S3",
 		"Expected full usage display")
 }
@@ -77,11 +95,27 @@ func TestBareCommand(t *testing.T) {
 func TestBareReadCommand(t *testing.T) {
 
 	// Run the command
-	output, err := executeCommand("read")
+	output := executeCommand("read")
 
 	// We should have a bucket required error but no usage displayed
-	assert.Equal(t, "An S3 bucket name must be provided", err.Error(), "Expected S3 bucket name required error")
-	assert.Empty(t, output, "Expected no usage display")
+	require.NotNil(t, executeError, "there should have been an error")
+	require.Equal(t, "An S3 bucket name must be provided", executeError.Error(), "Expected S3 bucket name required error")
+	require.Empty(t, output, "Expected no usage display")
+}
+
+// TestMinimumReadCommand provides only the required parmeters and confirms that
+// the parser is happy and assumes the exptected default values.
+func TestMinimumReadCommand(t *testing.T) {
+
+	// The following should parse happilly
+	executeCommand("read", "my-bucket")
+	require.Nil(t, executeError, "error seen parsing minimum read command line")
+	require.Equal(t, "us-east-1", region, "Default region set incorrectly: %s", region)
+	require.Equal(t, "root", path, "Default path set incorrectly: %s", path)
+	require.Equal(t, "basic", contentType, "Default content type set incorrectly: %s", path)
+	expectedStartDateTime, _ := time.Parse(time.RFC3339, "2020-01-01T00:00:00+00:00")
+	require.Equal(t, expectedStartDateTime, startDateTime, "Default start date time set incorrectly: %v", startDateTime)
+	require.Equal(t, 1.0, window.Hours(), "Default winwow set incorrectly: %v", window)
 }
 
 // TestReadCommandTooMany examines the case where a read command is requested
@@ -89,11 +123,12 @@ func TestBareReadCommand(t *testing.T) {
 func TestReadCommandTooMany(t *testing.T) {
 
 	// Run the command
-	output, err := executeCommand("read", "bucket", "one-too-many")
+	output := executeCommand("read", "bucket", "one-too-many")
 
 	// We should have a only one bucket name expected error and no usage display
-	assert.Equal(t, "Only expected a single bucket name argument", err.Error(), "Expected S3 bucket name required error")
-	assert.Empty(t, output, "Expected no usage display")
+	require.NotNil(t, executeError, "there should have been an error")
+	require.Equal(t, "Only expected a single bucket name argument", executeError.Error(), "Expected S3 bucket name required error")
+	require.Empty(t, output, "Expected no usage display")
 }
 
 // TestReadCommandBadStart examines the case where a read command is requested
@@ -101,33 +136,33 @@ func TestReadCommandTooMany(t *testing.T) {
 func TestReadCommandBadStart(t *testing.T) {
 
 	// Run the command
-	output, err := executeCommand("read", "bucket", "--start", "blargle")
+	output := executeCommand("read", "bucket", "--start", "blargle")
 
 	// We should have am invalid start time error and no usage display
-	assert.Equal(t,
+	require.NotNil(t, executeError, "there should have been an error")
+	require.Equal(t,
 		"Invalid start date time: parsing time \"blargle\" as \"2006-01-02T15:04:05Z07:00\": cannot parse \"blargle\" as \"2006\"",
-		err.Error(),
-		"Expected invalid --start value error")
-	assert.Empty(t, output, "Expected no usage display")
+		executeError.Error(), "Expected invalid --start value error")
+	require.Empty(t, output, "Expected no usage display")
 }
 
 // TestReadCommandStart examines whether start time parsing is correctly handled by the read command
 func TestReadCommandStart(t *testing.T) {
 
 	// Run the command
-	_, err := executeCommand("read", "bucket", "--start", "2020-03-04T05:06:07+08:00")
+	executeCommand("read", "bucket", "--start", "2020-03-04T05:06:07+08:00")
 
 	// We should have a subcommand required command and a complete usage dump
-	assert.Nil(t, err, "error seen parsing valid start time")
-	assert.Equal(t, 2020, startDateTime.Year(), "Expected start year did not match")
-	assert.Equal(t, time.March, startDateTime.Month(), "Expected start month did not match")
-	assert.Equal(t, 4, startDateTime.Day(), "Expected start day did not match")
-	assert.Equal(t, 5, startDateTime.Hour(), "Expected start hour did not match")
-	assert.Equal(t, 6, startDateTime.Minute(), "Expected start minute did not match")
-	assert.Equal(t, 7, startDateTime.Second(), "Expected start second did not match")
-	assert.Equal(t, 0, startDateTime.Nanosecond(), "Expected start nanosecond did not match")
+	require.Nil(t, executeError, "error seen parsing valid start time")
+	require.Equal(t, 2020, startDateTime.Year(), "Expected start year did not match")
+	require.Equal(t, time.March, startDateTime.Month(), "Expected start month did not match")
+	require.Equal(t, 4, startDateTime.Day(), "Expected start day did not match")
+	require.Equal(t, 5, startDateTime.Hour(), "Expected start hour did not match")
+	require.Equal(t, 6, startDateTime.Minute(), "Expected start minute did not match")
+	require.Equal(t, 7, startDateTime.Second(), "Expected start second did not match")
+	require.Equal(t, 0, startDateTime.Nanosecond(), "Expected start nanosecond did not match")
 	_, offset := startDateTime.Zone()
-	assert.Equal(t, 8*3600, offset, "Expected start time zone did not match")
+	require.Equal(t, 8*3600, offset, "Expected start time zone did not match")
 }
 
 // TestReadCommandBadWindow examines the case where a read command is requested
@@ -135,37 +170,70 @@ func TestReadCommandStart(t *testing.T) {
 func TestReadCommandBadWindow(t *testing.T) {
 
 	// Run the command
-	output, err := executeCommand("read", "bucket", "--window", "blargle")
+	output := executeCommand("read", "bucket", "--window", "blargle")
 
 	// We should have am invalid time window error and no usage display
-	assert.Equal(t,
+	require.NotNil(t, executeError, "there should have been an error")
+	require.Equal(t,
 		"Invalid time window: Cannot parse time window length",
-		err.Error(),
-		"Expected invalid --window value error")
-	assert.Empty(t, output, "Expected no usage display")
+		executeError.Error(), "Expected invalid --window value error")
+	require.Empty(t, output, "Expected no usage display")
 }
 
 // TestReadCommandWindow examines whether time window parsing is correctly handled by the read command
 func TestReadCommandWindow(t *testing.T) {
 
 	// Run the command with a window in days and check the result
-	var err error
-	_, err = executeCommand("read", "bucket", "--window", "7d")
-	assert.Nil(t, err, "error seen parsing valid window time of 7 days")
-	assert.Equal(t, 168.0, window.Hours(), "Expected 7 day window did not match")
+	executeCommand("read", "bucket", "--window", "7d")
+	require.Nil(t, executeError, "error seen parsing valid window time of 7 days")
+	require.Equal(t, 168.0, window.Hours(), "Expected 7 day window did not match")
 
 	// Run the command with a window in hours and check the result
-	_, err = executeCommand("read", "bucket", "--window", "12h")
-	assert.Nil(t, err, "error seen parsing valid window time of 12 hours")
-	assert.Equal(t, 12.0, window.Hours(), "Expected 12 hour window did not match")
+	executeCommand("read", "bucket", "--window", "12h")
+	require.Nil(t, executeError, "error seen parsing valid window time of 12 hours")
+	require.Equal(t, 12.0, window.Hours(), "Expected 12 hour window did not match")
 
 	// Run the command with a window in days and check the result
-	_, err = executeCommand("read", "bucket", "--window", "25m")
-	assert.Nil(t, err, "error seen parsing valid window time of 25 minutes")
-	assert.Equal(t, 25.0, window.Minutes(), "Expected 25 minute window did not match")
+	executeCommand("read", "bucket", "--window", "25m")
+	require.Nil(t, executeError, "error seen parsing valid window time of 25 minutes")
+	require.Equal(t, 25.0, window.Minutes(), "Expected 25 minute window did not match")
 
 	// Run the command with a window in days and check the result
-	_, err = executeCommand("read", "bucket", "--window", "95s")
-	assert.Nil(t, err, "error seen parsing valid window time of 95 seconds")
-	assert.Equal(t, 95.0, window.Seconds(), "Expected 95 second window did not match")
+	executeCommand("read", "bucket", "--window", "95s")
+	require.Nil(t, executeError, "error seen parsing valid window time of 95 seconds")
+	require.Equal(t, 95.0, window.Seconds(), "Expected 95 second window did not match")
+}
+
+// TestReadCommandBadContentType checks that an invalid content type
+// flag value is rejected with and error
+func TestReadCommandBadContentType(t *testing.T) {
+
+	// Run the command with an invalid content type
+	executeCommand("read", "bucket", "--content", "cheese")
+	require.NotNil(t, executeError, "there should have been an error")
+	require.Contains(t, executeError.Error(), "cheese", "error decription did not contain the bad content type")
+}
+
+// TestReadCommandContentTypes checks that all of the valid content types are accepted
+func TestReadCommandContentTypes(t *testing.T) {
+
+	// Run the command specifying the basic content type
+	executeCommand("read", "bucket", "--content", "basic")
+	require.Nil(t, executeError, "basic should have been an acceptable content type")
+
+	// Run the command specifying the request content type
+	executeCommand("read", "bucket", "--content", "request")
+	require.Nil(t, executeError, "request should have been an acceptable content type")
+
+	// Run the command specifying the bucket content type
+	executeCommand("read", "bucket", "--content", "bucket")
+	require.Nil(t, executeError, "bucket should have been an acceptable content type")
+
+	// Run the command specifying the rich content type
+	executeCommand("read", "bucket", "--content", "rich")
+	require.Nil(t, executeError, "rich should have been an acceptable content type")
+
+	// Run the command specifying the raw content type
+	executeCommand("read", "bucket", "--content", "raw")
+	require.Nil(t, executeError, "raw should have been an acceptable content type")
 }

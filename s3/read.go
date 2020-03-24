@@ -4,6 +4,7 @@ package s3
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -99,8 +100,20 @@ func displayLogData(dataChan <-chan *aws.WriteAtBuffer, doneChan chan<- struct{}
 	// Just testing the design - not real code
 	for awsBuff := range dataChan {
 
-		// AWS Web log objects end with a newline character so no need to "Println()"
-		fmt.Print(string(awsBuff.Bytes()))
+		// Break the buffer into lines that we can evaluate
+		lines := strings.Split(string(awsBuff.Bytes()), "\n")
+
+		// Loop over the lines, applying the requested treatment
+		for _, line := range lines {
+
+			// Skip blank lines
+			if len(line) == 0 {
+				continue
+			}
+
+			// Display the treated (or untreated) line
+			fmt.Println(line)
+		}
 	}
 	close(doneChan)
 }
