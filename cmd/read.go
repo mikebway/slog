@@ -11,11 +11,16 @@ import (
 )
 
 var (
-	startDateStr  string        // flag value defining the start time of the window to be processed
-	startDateTime time.Time     // the start time of the window to be processed
-	windowStr     string        // flag value defining the duration / time span to be considered
-	window        time.Duration // the duration / time span to be considered
-	contentType   string        // Specifies which fields are to be included in the log output
+	startDateStr   string         // flag value defining the start time of the window to be processed
+	startDateTime  time.Time      // the start time of the window to be processed
+	windowStr      string         // flag value defining the duration / time span to be considered
+	window         time.Duration  // the duration / time span to be considered
+	contentTypeStr string         // Specifies which fields are to be included in the log output
+	contentType    s3.ContentType // Content type as an enumerated value
+
+	// We build the parameters to be passed to he command execution
+	// as a global so that they can be checked by unit test code
+	slogSession *s3.SlogSession
 )
 
 // readCmd represents the read command
@@ -53,13 +58,14 @@ S3 hosted web logs from a specified bucket for that time window.`,
 			return fmt.Errorf("Invalid time window: %w", err)
 		}
 
-		// Polpulate a SlogSession to wrap our parameters up for the run
-		slogSession := &s3.SlogSession{
+		// Populate the SlogSession to wrap our parameters up for the run
+		slogSession = &s3.SlogSession{
 			Region:        region,
 			Bucket:        args[0],
 			Folder:        path,
 			StartDateTime: startDateTime,
 			EndDateTime:   startDateTime.Add(window),
+			Content:       contentType,
 		}
 
 		// All is well with the command formating and AWS access (to the best of our present knowledge).
@@ -98,15 +104,15 @@ func initReadFlags() {
 	readCmd.Flags().StringVar(&windowStr, "window", "1h",
 		`Time window in the days (d), hours (h), minutes (m) or seconds (s).
 For example '90s' for 90 seconds. '36h' for 36 hours.`)
-	readCmd.Flags().StringVar(&contentType, "content", "basic",
+	readCmd.Flags().StringVar(&contentTypeStr, "content", "basic",
 		`Content to include in the log output; must be one of the following:
-
-	basic   - minimal useful content, no bucket names, owners, request IDs etc
-	request - includes the request ID
-	bucket  - prefixed with the Web source bucket name (usefull if capturing
-			  logs from multipe buckets into one location)
-	rich    - includes bucket, request ID, operation and key values
-	raw     - the whole enchilada, as originally recorded by AWS`)
+   basic   - minimal useful content, no bucket names, owners, request IDs etc
+   request - includes the request ID
+   bucket  - prefixed with the Web source bucket name (usefull if capturing
+		 logs from multipe buckets into one location)
+   rich    - includes bucket, request ID, operation and key values
+   raw     - the whole enchilada, as originally recorded by AWS
+`)
 }
 
 // Parse a time window string into a duration
@@ -144,14 +150,19 @@ func parseTimeWindow(wstr string) (time.Duration, error) {
 // valid log content types that we know how to render.
 func validateContentType() error {
 
-	switch contentType {
+	switch contentTypeStr {
 	case "basic":
+		contentType = s3.BASIC
 	case "request":
+		contentType = s3.REQUEST
 	case "bucket":
+		contentType = s3.BUCKET
 	case "rich":
+		contentType = s3.RICH
 	case "raw":
+		contentType = s3.RAW
 	default:
-		return fmt.Errorf("Unrecognized content type: %s", contentType)
+		return fmt.Errorf("Unrecognized content type: %s", contentTypeStr)
 	}
 
 	// If we get to this point, all is well with our corner of the world

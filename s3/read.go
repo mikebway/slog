@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	maxListKeys int64 = 100 // Max number of keys to fetch per page; override for unit testing
+	maxListKeys int64 = 100 // Max number of keys to fetch per page; can be overridden for unit testing
 )
 
 // DisplayLog prints the Web logs from the bucket and root path / folder, between
@@ -110,6 +110,8 @@ func displayLogData(dataChan <-chan *aws.WriteAtBuffer, doneChan chan<- struct{}
 			if len(line) == 0 {
 				continue
 			}
+
+			// If we are doing raw content display, just output the line
 
 			// Display the treated (or untreated) line
 			fmt.Println(line)

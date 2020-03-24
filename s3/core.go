@@ -12,6 +12,18 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
+// ContentType is an enumeration controling which fields from each line of the web logs are displayed
+type ContentType int
+
+// The possible values of ContentType; defaults to BASIC
+const (
+	BASIC ContentType = iota
+	REQUEST
+	BUCKET
+	RICH
+	RAW
+)
+
 // SlogSession is a structure packing the various parameters for a given run.
 type SlogSession struct {
 	awsSession    *session.Session // The S3 session
@@ -21,6 +33,7 @@ type SlogSession struct {
 	Folder        string           // The name of the folder to be walked within the bucket
 	StartDateTime time.Time        // When reading logs, the timestamp of the earliest entry sought
 	EndDateTime   time.Time        // When reading logs, the timestamp of the latest entry sought
+	Content       ContentType      // Controls which fields to include in the Web log display
 }
 
 // activateSession adds an AWS session and and S3 client to a SlogSession

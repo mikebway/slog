@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mikebway/slog/s3"
 	"github.com/stretchr/testify/require"
 )
 
@@ -46,7 +47,8 @@ func resetCommand() {
 	startDateTime = time.Time{}
 	windowStr = ""
 	window = time.Duration(0)
-	contentType = ""
+	contentTypeStr = ""
+	slogSession = nil
 
 	// Reset the global values
 	executeError = nil
@@ -110,12 +112,13 @@ func TestMinimumReadCommand(t *testing.T) {
 	// The following should parse happilly
 	executeCommand("read", "my-bucket")
 	require.Nil(t, executeError, "error seen parsing minimum read command line")
-	require.Equal(t, "us-east-1", region, "Default region set incorrectly: %s", region)
-	require.Equal(t, "root", path, "Default path set incorrectly: %s", path)
-	require.Equal(t, "basic", contentType, "Default content type set incorrectly: %s", path)
+	require.Equal(t, "us-east-1", slogSession.Region, "Default region set incorrectly: %s", region)
+	require.Equal(t, "root", slogSession.Folder, "Default path set incorrectly: %s", path)
+	require.Equal(t, s3.BASIC, slogSession.Content, "Default content type set incorrectly: %s", path)
 	expectedStartDateTime, _ := time.Parse(time.RFC3339, "2020-01-01T00:00:00+00:00")
-	require.Equal(t, expectedStartDateTime, startDateTime, "Default start date time set incorrectly: %v", startDateTime)
-	require.Equal(t, 1.0, window.Hours(), "Default winwow set incorrectly: %v", window)
+	require.Equal(t, expectedStartDateTime, slogSession.StartDateTime, "Default start date time set incorrectly: %v", startDateTime)
+	expectedEndDateTime := expectedStartDateTime.Add(time.Hour)
+	require.Equal(t, expectedEndDateTime, slogSession.EndDateTime, "Default winwow set incorrectly: %v", window)
 }
 
 // TestReadCommandTooMany examines the case where a read command is requested
@@ -220,20 +223,25 @@ func TestReadCommandContentTypes(t *testing.T) {
 	// Run the command specifying the basic content type
 	executeCommand("read", "bucket", "--content", "basic")
 	require.Nil(t, executeError, "basic should have been an acceptable content type")
+	require.Equal(t, s3.BASIC, slogSession.Content, "SlogSession not populated with the right content type")
 
 	// Run the command specifying the request content type
 	executeCommand("read", "bucket", "--content", "request")
 	require.Nil(t, executeError, "request should have been an acceptable content type")
+	require.Equal(t, s3.REQUEST, slogSession.Content, "SlogSession not populated with the right content type")
 
 	// Run the command specifying the bucket content type
 	executeCommand("read", "bucket", "--content", "bucket")
 	require.Nil(t, executeError, "bucket should have been an acceptable content type")
+	require.Equal(t, s3.BUCKET, slogSession.Content, "SlogSession not populated with the right content type")
 
 	// Run the command specifying the rich content type
 	executeCommand("read", "bucket", "--content", "rich")
 	require.Nil(t, executeError, "rich should have been an acceptable content type")
+	require.Equal(t, s3.RICH, slogSession.Content, "SlogSession not populated with the right content type")
 
 	// Run the command specifying the raw content type
 	executeCommand("read", "bucket", "--content", "raw")
 	require.Nil(t, executeError, "raw should have been an acceptable content type")
+	require.Equal(t, s3.RAW, slogSession.Content, "SlogSession not populated with the right content type")
 }
