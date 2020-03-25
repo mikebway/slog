@@ -71,7 +71,7 @@ func fetchLogObjectData(session *SlogSession, keyChan <-chan string, dataChan ch
 		// Download the object
 		_, err := downloader.Download(awsBuff,
 			&s3.GetObjectInput{
-				Bucket: aws.String(session.Bucket),
+				Bucket: aws.String(session.LogBucket),
 				Key:    aws.String(key),
 			})
 
@@ -135,16 +135,24 @@ func displaySelectLogData(session *SlogSession, awsBuff *aws.WriteAtBuffer) erro
 			continue
 		}
 
+		// Split the line into words / fields. This could be problematic since some fields actually contain spaces :-(
+		parts := strings.Split(line, " ")
+
+		// If we are filtering for specified Web site source buckets, skip this line if it does not match
+		if session.SourceBuckets != nil && !stringSliceContains(session.SourceBuckets, parts[1]) {
+			continue
+		}
+
 		// Process the line based on the content type requested
 		switch session.Content {
 		case BASIC:
-			line = basicContent(line)
+			line = basicContent(parts)
 		case REQUESTID:
-			line = requestContent(line)
+			line = requestIDContent(parts)
 		case BUCKET:
-			line = bucketContent(line)
+			line = bucketContent(parts)
 		case RICH:
-			line = richContent(line)
+			line = richContent(parts)
 		default:
 			return fmt.Errorf("No implementation for content type: %d", session.Content)
 		}
@@ -156,12 +164,19 @@ func displaySelectLogData(session *SlogSession, awsBuff *aws.WriteAtBuffer) erro
 	return nil
 }
 
+// stringSliceContains tests whether a string slice contains a given value
+func stringSliceContains(slice []string, value string) bool {
+	for _, entry := range slice {
+		if entry == value {
+			return true
+		}
+	}
+	return false
+}
+
 // basicContent returns the least amount of information from raw AWS web log entries, typically
 // more than enough to be useful without filling the screen with noise.
-func basicContent(line string) string {
-
-	// Split the line into words / fields. This is problematic since some fields actually contain spaces :-(
-	parts := strings.Split(line, " ")
+func basicContent(parts []string) string {
 
 	// Build up parts from consecutive runs of fields that we want. The problem lies
 	// with the User-Agent field that will contain a variable number of spaces and thus generate
@@ -176,10 +191,9 @@ func basicContent(line string) string {
 }
 
 // requestContent returns the basic content plus the Amazon generated request ID.
-func requestContent(line string) string {
+func requestIDContent(parts []string) string {
 
 	// See algorithm comments in basicContent(..)
-	parts := strings.Split(line, " ")
 	count := len(parts)
 	part1 := strings.Join(parts[2:5], " ")
 	requestID := parts[6]
@@ -193,10 +207,9 @@ func requestContent(line string) string {
 // This is useful if the log bucket is being used to collect Web log data associated with multiple
 // buckets, for example where blog pages are served out of one bucket but images or Javascript
 // files are served from another.
-func bucketContent(line string) string {
+func bucketContent(parts []string) string {
 
 	// See algorithm comments in basicContent(..)
-	parts := strings.Split(line, " ")
 	count := len(parts)
 	part1 := strings.Join(parts[1:5], " ")
 	part2 := strings.Join(parts[9:count-7], " ")
@@ -208,10 +221,9 @@ func bucketContent(line string) string {
 // richContent returns most of the data from the log entry but excludes distracting noise like
 // the AWS ID for bucket owner etc. These take up a lot of space and are not typically of interest
 // to Web site managers.
-func richContent(line string) string {
+func richContent(parts []string) string {
 
 	// See algorithm comments in basicContent(..)
-	parts := strings.Split(line, " ")
 	count := len(parts)
 	part1 := strings.Join(parts[1:5], " ")
 	part2 := strings.Join(parts[6:count-7], " ")

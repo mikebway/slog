@@ -25,19 +25,17 @@ var (
 
 // readCmd represents the read command
 var readCmd = &cobra.Command{
-	Use:   "read bucket",
+	Use:   "read log-bucket [source-bucket*]",
 	Short: "Display S3 hosted web logs for a given time window",
-	Long: `Given a start date and time, together with a time window, displays the
-S3 hosted web logs from a specified bucket for that time window.`,
+	Long: `Given a start date and time, together with a time window, displays the S3 hosted
+web logs from a specified bucket for that time window. Optionally, filters the
+log data to to only include those entries that match the list of source buckets.`,
 
 	RunE: func(cmd *cobra.Command, args []string) error {
 
 		// There must be an S3 bucket name
 		if len(args) == 0 {
 			return errors.New("An S3 bucket name must be provided")
-		}
-		if len(args) > 1 {
-			return errors.New("Only expected a single bucket name argument")
 		}
 
 		// Confirm that the content type requested is valid
@@ -61,8 +59,9 @@ S3 hosted web logs from a specified bucket for that time window.`,
 		// Populate the SlogSession to wrap our parameters up for the run
 		slogSession = &s3.SlogSession{
 			Region:        region,
-			Bucket:        args[0],
+			LogBucket:     args[0],
 			Folder:        path,
+			SourceBuckets: args[1:],
 			StartDateTime: startDateTime,
 			EndDateTime:   startDateTime.Add(window),
 			Content:       contentType,
@@ -100,7 +99,8 @@ func initReadFlags() {
 
 	// Local flag definitions
 	readCmd.Flags().StringVar(&startDateStr, "start", "2020-01-01T00:00:00-00:00",
-		`Start date time in the form 2020-01-02T15:04:05Z07:00 form with time zone offset`)
+		`Start date time in the form 2020-01-02T15:04:05Z07:00 form with time zone offset
+`)
 	readCmd.Flags().StringVar(&windowStr, "window", "1h",
 		`Time window in the days (d), hours (h), minutes (m) or seconds (s).
 For example '90s' for 90 seconds. '36h' for 36 hours.`)
@@ -111,7 +111,8 @@ For example '90s' for 90 seconds. '36h' for 36 hours.`)
    bucket    - prefixed with the Web source bucket name (usefull if capturing
                logs from multipe buckets into one location)
    rich      - includes bucket, request ID, operation and key values
-   raw       - the whole enchilada, as originally recorded by AWS
+   raw       - the whole enchilada, as originally recorded by AWS;
+               ignores source bucket filtering; outputs all lines 
 `)
 }
 

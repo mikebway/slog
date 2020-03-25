@@ -78,7 +78,7 @@ func TestReadBadBucket(t *testing.T) {
 
 	// Build a session object with an invalid bucktt name
 	slogSess := newTestSlogSession()
-	slogSess.Bucket = "there-is-no-bucket-with-this-name-xyz123"
+	slogSess.LogBucket = "there-is-no-bucket-with-this-name-xyz123"
 
 	// Try to display the logs form the non-existent bucket
 	err := DisplayLog(slogSess)

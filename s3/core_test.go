@@ -86,8 +86,9 @@ export SLOG_TEST_CONTAINS="AA960FCC76F5673E WEBSITE.GET.OBJECT robots.txt"`)
 func newTestSlogSession() *SlogSession {
 	return &SlogSession{
 		Region:        targetRegion,
-		Bucket:        targetBucket,
+		LogBucket:     targetBucket,
 		Folder:        targetFolder,
+		SourceBuckets: nil,
 		StartDateTime: targetStartDateTime,
 		EndDateTime:   targetEndDateTime,
 	}

@@ -121,18 +121,18 @@ func TestMinimumReadCommand(t *testing.T) {
 	require.Equal(t, expectedEndDateTime, slogSession.EndDateTime, "Default winwow set incorrectly: %v", window)
 }
 
-// TestReadCommandTooMany examines the case where a read command is requested
-// with too many non-flag parameters.
-func TestReadCommandTooMany(t *testing.T) {
+// // TestReadCommandTooMany examines the case where a read command is requested
+// // with too many non-flag parameters.
+// func TestReadCommandTooMany(t *testing.T) {
 
-	// Run the command
-	output := executeCommand("read", "bucket", "one-too-many")
+// 	// Run the command
+// 	output := executeCommand("read", "bucket", "one-too-many")
 
-	// We should have a only one bucket name expected error and no usage display
-	require.NotNil(t, executeError, "there should have been an error")
-	require.Equal(t, "Only expected a single bucket name argument", executeError.Error(), "Expected S3 bucket name required error")
-	require.Empty(t, output, "Expected no usage display")
-}
+// 	// We should have a only one bucket name expected error and no usage display
+// 	require.NotNil(t, executeError, "there should have been an error")
+// 	require.Equal(t, "Only expected a single bucket name argument", executeError.Error(), "Expected S3 bucket name required error")
+// 	require.Empty(t, output, "Expected no usage display")
+// }
 
 // TestReadCommandBadStart examines the case where a read command is requested
 // with an invalid start time

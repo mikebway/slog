@@ -29,8 +29,9 @@ type SlogSession struct {
 	awsSession    *session.Session // The S3 session
 	s3            *s3.S3           // The S3 client
 	Region        string           // The AWS region where the S3 bucket is hosted
-	Bucket        string           // The name of the target bucket
+	LogBucket     string           // The name of the bucket from which logs are to be processed
 	Folder        string           // The name of the folder to be walked within the bucket
+	SourceBuckets []string         // Optionally, the names of Web content source buckets that are to be filtered for
 	StartDateTime time.Time        // When reading logs, the timestamp of the earliest entry sought
 	EndDateTime   time.Time        // When reading logs, the timestamp of the latest entry sought
 	Content       ContentType      // Controls which fields to include in the Web log display
@@ -90,7 +91,7 @@ func fetchLogObjectKeys(session *SlogSession, keyChan chan<- string, errChan cha
 	// Set up our starting point for paging through S3 bucket keynames
 	input := &s3.ListObjectsV2Input{
 		MaxKeys:    aws.Int64(maxListKeys),
-		Bucket:     &session.Bucket,
+		Bucket:     &session.LogBucket,
 		Prefix:     &prefix,
 		StartAfter: &startAfter,
 	}
