@@ -62,6 +62,12 @@ func activateSession(slogSession *SlogSession) error {
 	// Obtain an S3 service handle
 	s3Client := s3.New(awsSession)
 
+	// For consistency when testing, replace nil values of SlogSession.SourceBuckets
+	// with an empty array/slice
+	if slogSession.SourceBuckets == nil {
+		slogSession.SourceBuckets = make([]string, 0)
+	}
+
 	// All good - put those in the session and return happy
 	slogSession.awsSession = awsSession
 	slogSession.s3 = s3Client

@@ -139,7 +139,7 @@ func displaySelectLogData(session *SlogSession, awsBuff *aws.WriteAtBuffer) erro
 		parts := strings.Split(line, " ")
 
 		// If we are filtering for specified Web site source buckets, skip this line if it does not match
-		if session.SourceBuckets != nil && !stringSliceContains(session.SourceBuckets, parts[1]) {
+		if len(session.SourceBuckets) > 0 && !stringSliceContains(session.SourceBuckets, parts[1]) {
 			continue
 		}
 

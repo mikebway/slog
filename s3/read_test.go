@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -209,4 +210,42 @@ func TestReadContentTypes(t *testing.T) {
 	require.Greater(t, requestIDLength, basicLength, "Raw content length must be longer than basic")
 	require.Greater(t, bucketLength, basicLength, "Bucket content length must be longer than basic")
 	require.Greater(t, richLength, bucketLength, "Bucket content length must be longer than bucket")
+}
+
+// TestReadFilter looks at whether content can be filtered by specifying a source bucket.
+// The test is limited in that it does not analyze the returned content in depth, only
+// confirm that filtering reduces content. True testing of this feature must be left
+// to manual inspection.
+func TestReadFilter(t *testing.T) {
+
+	// Caputure the output of an unfiltered run but asking for the source bucket names
+	// to be included so that we can find out what they might be regarldess of who
+	// configured tests.
+	slogSess := newTestSlogSession()
+	slogSess.Content = BUCKET
+	output, err := captureLog(slogSess)
+	require.Nil(t, err, "Error capturing initial log content with bucket name: %v", err)
+	originalLenWithBucketName := len(output)
+	require.Greater(t, originalLenWithBucketName, 0, "No content captured in initial request for content with source bucket name: %v", err)
+
+	// Extract a bucket name from the first line of content - it is the first field
+	breakIndex := strings.IndexByte(output, ' ')
+	knownSourceBucket := output[0:breakIndex]
+	require.Greater(t, len(knownSourceBucket), 0, "Failed to extract source bucket name from initial content")
+
+	// Now ask for basic content filtered to only include that for the bucket name we just found
+	slogSess.Content = BASIC
+	slogSess.SourceBuckets = make([]string, 1)
+	slogSess.SourceBuckets[0] = knownSourceBucket
+	output, err = captureLog(slogSess)
+	require.Nil(t, err, "Error capturing log content filtered for bucket name %s: %v", knownSourceBucket, err)
+	lenFilteredForKnownBucket := len(output)
+	require.Greater(t, lenFilteredForKnownBucket, 0, "No content captured filtering for known source bucket %s: %v", knownSourceBucket, err)
+	require.Less(t, lenFilteredForKnownBucket, originalLenWithBucketName, "Obtained longer content when filtering than unfiltered with bucket names!")
+
+	// Finally, repeat filtering for a name we are pretty certain will not be there
+	slogSess.SourceBuckets[0] = "not a valid bucket name !?&%$#,|"
+	output, err = captureLog(slogSess)
+	require.Nil(t, err, "Error capturing log content filtered for invalid bucket name %s: %v", slogSess.SourceBuckets[0], err)
+	require.Equal(t, len(output), 0, "Should have had no content filtering for invalid bucket name %s: %v", knownSourceBucket, err)
 }

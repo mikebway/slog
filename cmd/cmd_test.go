@@ -3,7 +3,6 @@ package cmd
 // Unit tests for the Cobra command line parsers
 
 import (
-	"bytes"
 	"testing"
 	"time"
 
@@ -23,43 +22,15 @@ func init() {
 // executeError package global.
 func executeCommand(args ...string) string {
 
-	// Ensure that we are in a sweet and innocent state
-	resetCommand()
+	// Clear the ground back to virgin forest and prepare a buffer to capture
+	// the execution output
+	buf := prepForExecute(args)
 
-	// Arrange to collect the output in a buffer
-	buf := new(bytes.Buffer)
-	rootCmd.SetOutput(buf)
-
-	// Set the arguments and invoke the normal Execute() package entry point
-	rootCmd.SetArgs(args)
+	// Execute the command, collecting outout in our buffer
 	Execute()
 
 	// Return the output as a string
 	return buf.String()
-}
-
-// resetCommand clears both command specific parameter values and
-// global ones so that tests can be run in a known "virgin" state.
-func resetCommand() {
-
-	// Reset read command specific values
-	startDateStr = ""
-	startDateTime = time.Time{}
-	windowStr = ""
-	window = time.Duration(0)
-	contentTypeStr = ""
-	slogSession = nil
-
-	// Reset the global values
-	executeError = nil
-	region = ""
-	path = ""
-
-	// Clear and then re-initialize all the flags definitions
-	rootCmd.ResetFlags()
-	readCmd.ResetFlags()
-	initRootFlags()
-	initReadFlags()
 }
 
 // TestExecute maximizes coverage by invoking cmd.Execute().
@@ -114,6 +85,8 @@ func TestMinimumReadCommand(t *testing.T) {
 	require.Nil(t, executeError, "error seen parsing minimum read command line")
 	require.Equal(t, "us-east-1", slogSession.Region, "Default region set incorrectly: %s", region)
 	require.Equal(t, "root", slogSession.Folder, "Default path set incorrectly: %s", path)
+	require.NotNil(t, slogSession.SourceBuckets, "Default of non-nil filter buckets set incorrectly")
+	require.Zero(t, len(slogSession.SourceBuckets), "Default of zero filter buckets set incorrectly")
 	require.Equal(t, s3.BASIC, slogSession.Content, "Default content type set incorrectly: %s", path)
 	expectedStartDateTime, _ := time.Parse(time.RFC3339, "2020-01-01T00:00:00+00:00")
 	require.Equal(t, expectedStartDateTime, slogSession.StartDateTime, "Default start date time set incorrectly: %v", startDateTime)
@@ -121,18 +94,21 @@ func TestMinimumReadCommand(t *testing.T) {
 	require.Equal(t, expectedEndDateTime, slogSession.EndDateTime, "Default winwow set incorrectly: %v", window)
 }
 
-// // TestReadCommandTooMany examines the case where a read command is requested
-// // with too many non-flag parameters.
-// func TestReadCommandTooMany(t *testing.T) {
+// TestFilteredReadCommand confirms that the session is populated correctly if
+// Web content bucket names are provided
+func TestFilteredReadCommand(t *testing.T) {
 
-// 	// Run the command
-// 	output := executeCommand("read", "bucket", "one-too-many")
+	// The bucket names to request filtering for
+	filterBucket1 := "filter-bucket-1"
+	filterBucket2 := "second-filter-bucket"
 
-// 	// We should have a only one bucket name expected error and no usage display
-// 	require.NotNil(t, executeError, "there should have been an error")
-// 	require.Equal(t, "Only expected a single bucket name argument", executeError.Error(), "Expected S3 bucket name required error")
-// 	require.Empty(t, output, "Expected no usage display")
-// }
+	// The following should parse happilly
+	executeCommand("read", "my-bucket", filterBucket1, filterBucket2)
+	require.NotNil(t, slogSession.SourceBuckets, "Filter by source buckets should have been set")
+	require.Equal(t, 2, len(slogSession.SourceBuckets), "Filter by source buckets should name two buckets")
+	require.Equal(t, filterBucket1, slogSession.SourceBuckets[0], "First filter by source bucket incorrect: %s")
+	require.Equal(t, filterBucket2, slogSession.SourceBuckets[1], "Second filter by source bucket incorrect: %s")
+}
 
 // TestReadCommandBadStart examines the case where a read command is requested
 // with an invalid start time

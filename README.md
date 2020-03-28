@@ -40,11 +40,12 @@ Asking for help on the read command using `slog help read` will give the followi
 usage information:
 
 ```text
-Given a start date and time, together with a time window, displays the
-S3 hosted web logs from a specified bucket for that time window.
+Given a start date and time, together with a time window, displays the S3 hosted
+web logs from a specified bucket for that time window. Optionally, filters the
+log data to to only include those entries that match the list of source buckets.
 
 Usage:
-  slog read bucket [flags]
+  slog read log-bucket [source-bucket*] [flags]
 
 Flags:
       --content string   Content to include in the log output; must be one of the following:
@@ -53,10 +54,12 @@ Flags:
                             bucket    - prefixed with the Web source bucket name (usefull if capturing
                                         logs from multipe buckets into one location)
                             rich      - includes bucket, request ID, operation and key values
-                            raw       - the whole enchilada, as originally recorded by AWS
+                            raw       - the whole enchilada, as originally recorded by AWS;
+                                        ignores source bucket filtering; outputs all lines
                           (default "basic")
   -h, --help             help for read
-      --start string     Start date time in the form 2020-01-02T15:04:05Z07:00 form with time zone offset (default "2020-01-01T00:00:00-00:00")
+      --start string     Start date time in the form 2020-01-02T15:04:05Z07:00 form with time zone offset
+                          (default "2020-01-01T00:00:00-00:00")
       --window string    Time window in the days (d), hours (h), minutes (m) or seconds (s).
                          For example '90s' for 90 seconds. '36h' for 36 hours. (default "1h")
 
