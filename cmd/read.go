@@ -29,7 +29,7 @@ var readCmd = &cobra.Command{
 	Short: "Display S3 hosted web logs for a given time window",
 	Long: `Given a start date and time, together with a time window, displays the S3 hosted
 web logs from a specified bucket for that time window. Optionally, filters the
-log data to to only include those entries that match the list of source buckets.`,
+log data to only include those entries that match the list of source buckets.`,
 
 	RunE: func(cmd *cobra.Command, args []string) error {
 
@@ -108,8 +108,8 @@ For example '90s' for 90 seconds. '36h' for 36 hours.`)
 		`Content to include in the log output; must be one of the following:
    basic     - minimal useful content, no bucket names, owners, request IDs etc
    requestid - includes the request ID
-   bucket    - prefixed with the Web source bucket name (usefull if capturing
-               logs from multipe buckets into one location)
+   bucket    - prefixed with the Web source bucket name (useful if capturing
+               logs from multiple buckets into one location)
    rich      - includes bucket, request ID, operation and key values
    raw       - the whole enchilada, as originally recorded by AWS;
                ignores source bucket filtering; outputs all lines 
@@ -123,7 +123,7 @@ func parseTimeWindow(wstr string) (time.Duration, error) {
 	l := len(wstr)
 	if l > 1 {
 
-		// The last character tells us the type of the number that preceeds it (hours, minites, etc)
+		// The last character tells us the type of the number that precedes it (hours, minites, etc)
 		// The characters before the type should be an integer count
 		i, err := strconv.Atoi(wstr[0 : l-1])
 		if err == nil {

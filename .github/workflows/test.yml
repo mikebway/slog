@@ -1,0 +1,42 @@
+name: Tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go 1.14
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.14
+        id: go
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: Run Tests
+        run: |
+          export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+          export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          export SLOG_TEST_REGION=us-east-1
+          export SLOG_TEST_BUCKET=log.mikebroadway.com
+          export SLOG_TEST_FOLDER=root
+          export SLOG_TEST_START_DATETIME=2020-03-20T13:30:00Z
+          export SLOG_TEST_END_DATETIME=2020-03-20T14:00:00Z
+          export SLOG_TEST_CONTAINS="AA960FCC76F5673E WEBSITE.GET.OBJECT robots.txt"
+          go test ./... -coverprofile cover.out
+          go tool cover -func cover.out
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./cover.out
+          name: master
+          fail_ci_if_error: true

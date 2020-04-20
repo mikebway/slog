@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-// ContentType is an enumeration controling which fields from each line of the web logs are displayed
+// ContentType is an enumeration controlling which fields from each line of the web logs are displayed
 type ContentType int
 
 // The possible values of ContentType; defaults to BASIC
@@ -86,7 +86,7 @@ func fetchLogObjectKeys(session *SlogSession, keyChan chan<- string, errChan cha
 	// Form the folder prefix from the path provided
 	prefix := session.Folder + "/"
 
-	// Format the start time to ther nearest minute and combine with the prefix
+	// Format the start time to the nearest minute and combine with the prefix
 	// to form the "start after" key
 	const keyTimeFormat = "2006-01-02-15-04-05"
 	startAfter := prefix + session.StartDateTime.UTC().Format(keyTimeFormat)

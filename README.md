@@ -1,9 +1,11 @@
 # slog - A CLI Utility for Managing S3 Static Web Site Logs
 
+[![ISC License][isc-img]][isc] [![Go Report Card][go-report]][go-report-card] [![Test][test-action]][test-action-runs] [![Coverage Status][cov-img]][cov]
+
 slog allows you to sequentially view access log data from web sites that are hosted
 and served from Amazon S3 buckets.
 
-If you follow the [AWS directions for hosting static Web content](https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html),
+If you follow the [AWS directions for hosting static Web content](https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html)
 and [configure traffic logging](https://docs.aws.amazon.com/AmazonS3/latest/dev/LoggingWebsiteTraffic.html),
 the resulting log data is fragmented over a large number of S3 files/objects named for the time at which the access
 they record was generated - typically one file per second of activity but potentially more in higher traffic
@@ -42,7 +44,7 @@ usage information:
 ```text
 Given a start date and time, together with a time window, displays the S3 hosted
 web logs from a specified bucket for that time window. Optionally, filters the
-log data to to only include those entries that match the list of source buckets.
+log data to only include those entries that match the list of source buckets.
 
 Usage:
   slog read log-bucket [source-bucket*] [flags]
@@ -51,8 +53,8 @@ Flags:
       --content string   Content to include in the log output; must be one of the following:
                             basic     - minimal useful content, no bucket names, owners, request IDs etc
                             requestid - includes the request ID
-                            bucket    - prefixed with the Web source bucket name (usefull if capturing
-                                        logs from multipe buckets into one location)
+                            bucket    - prefixed with the Web source bucket name (useful if capturing
+                                        logs from multiple buckets into one location)
                             rich      - includes bucket, request ID, operation and key values
                             raw       - the whole enchilada, as originally recorded by AWS;
                                         ignores source bucket filtering; outputs all lines
@@ -73,14 +75,14 @@ Global Flags:
 I intend to add a `delete` command at some point, to clear out old logs up to a
 given date. To unit/integration test this without risking real log data I would need to
 write fake log data to a safe bucket location. My own web site sees so little
-traffic that I lack the incentive to roll my sleaves up and get all that done yet.
+traffic that I lack the incentive to roll my sleeves up and get all that done yet.
 
 ## Unit / Integration Testing
 
 The unit tests are really more like integration tests in that they will invoke
 AWS S3 API calls. This requires access to an S3 bucket with the web logs from
-S3 hosted web content. If the parameters for this log bucket were hard coded
-in the unit tests, nobody but the oroiginal auther would be able to run the
+S3 hosted web content. If the parameters for this log bucket were hardcoded
+in the unit tests, nobody but the original author would be able to run the
 tests so these parameters can be set through environment variables as follows:
 
 ```bash
@@ -92,7 +94,7 @@ export SLOG_TEST_END_DATETIME=2020-03-20T14:00:00Z
 export SLOG_TEST_CONTAINS="AA960FCC76F5673E WEBSITE.GET.OBJECT robots.txt"
 ```
 
-The `SLOG_TEST_CONTAINS` varibale must describe a portion of the log content
+The `SLOG_TEST_CONTAINS` variable must describe a portion of the log content
 that will be found somewhere between the start and end date and time given in the
 other variables.
 
@@ -103,10 +105,24 @@ command line and receive a coverage report:
 go test -cover ./...
 ```
 
-To ensure that all tests are run, and that none are assumed unchanged for the
-cache of a previous run, you may add the `-count=1` flag to required that all
+To ensure that all tests are run and that none are assumed unchanged for the
+cache of a previous run, you may add the `-count=1` flag to require that all
 tests are run at least and exactly once:
 
 ```bash
 go test -cover -count=1 ./...
 ```
+
+[isc-img]: https://img.shields.io/badge/License-ISC-blue.svg
+[isc]: https://github.com/mikebway/slog/blob/master/LICENSE
+
+[go-report]: https://goreportcard.com/badge/github.com/mikebway/slog
+[go-report-card]: https://goreportcard.com/report/github.com/mikebway/slog
+
+[test-action]: https://github.com/mikebway/slog/workflows/Tests/badge.svg
+[test-action-runs]: https://github.com/mikebway/slog/actions?query=workflow%3ATests
+
+[cov-img]: https://codecov.io/gh/mikebway/slog/branch/master/graph/badge.svg
+[cov]: https://codecov.io/gh/mikebway/slog
+
+[sts-session]: https://docs.aws.amazon.com/cli/latest/reference/sts/get-session-token.html

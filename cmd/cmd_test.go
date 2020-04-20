@@ -33,22 +33,6 @@ func executeCommand(args ...string) string {
 	return buf.String()
 }
 
-// TestExecute maximizes coverage by invoking cmd.Execute().
-// We get less information back from cmd.Execute() so don't invoke it for the
-// majority of our tests, going around it for them.
-func TestExecute(t *testing.T) {
-
-	// Execute the slog command with no parameters
-	output := executeCommand()
-
-	// We should have a subcommand required command and a complete usage dump
-	require.NotNil(t, executeError, "there should have been an error")
-	require.Equal(t, "subcommand is required", executeError.Error(), "Expected subcommand required error")
-	require.Contains(t, output,
-		"Slog is a CLI utility for reading and culling web access logs stored in S3",
-		"Expected full usage display")
-}
-
 // TestBareCommand examines the case where no parameters are provided
 func TestBareCommand(t *testing.T) {
 
@@ -80,7 +64,7 @@ func TestBareReadCommand(t *testing.T) {
 // the parser is happy and assumes the exptected default values.
 func TestMinimumReadCommand(t *testing.T) {
 
-	// The following should parse happilly
+	// The following should parse happily
 	executeCommand("read", "my-bucket")
 	require.Nil(t, executeError, "error seen parsing minimum read command line")
 	require.Equal(t, "us-east-1", slogSession.Region, "Default region set incorrectly: %s", region)
@@ -102,7 +86,7 @@ func TestFilteredReadCommand(t *testing.T) {
 	filterBucket1 := "filter-bucket-1"
 	filterBucket2 := "second-filter-bucket"
 
-	// The following should parse happilly
+	// The following should parse happily
 	executeCommand("read", "my-bucket", filterBucket1, filterBucket2)
 	require.NotNil(t, slogSession.SourceBuckets, "Filter by source buckets should have been set")
 	require.Equal(t, 2, len(slogSession.SourceBuckets), "Filter by source buckets should name two buckets")

@@ -41,7 +41,7 @@ func captureLog(slogSess *SlogSession) (string, error) {
 		return "", err
 	}
 
-	// Restore stdout and close the write end of the pipe so that we can collect the ouput
+	// Restore stdout and close the write end of the pipe so that we can collect the output
 	os.Stdout = originalStdout
 	writeFile.Close()
 

@@ -44,6 +44,7 @@ func Execute() {
 	}
 }
 
+// Load time initialization - called automatically
 func init() {
 
 	// Initialize the flags that apply to the root command and, potentially, to subcommands
@@ -84,7 +85,7 @@ func PrepForExecute(args ...string) *bytes.Buffer {
 
 // prepForExecute is a package scoped function accepting a string array of
 // command line argument values. It resets the session environment and
-// establishs a a buffer to capture the output of the subsequent command
+// establishs a buffer to capture the output of the subsequent command
 // execution.
 func prepForExecute(args []string) *bytes.Buffer {
 
